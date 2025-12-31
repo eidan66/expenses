@@ -1,13 +1,11 @@
 import Layout from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Button } from "@/components/ui/button";
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
-  LineChart, Line, AreaChart, Area, Cell, PieChart, Pie
+  AreaChart, Area, Cell, PieChart, Pie
 } from "recharts";
-import { TrendingUp, Wallet, ArrowUpRight, ArrowDownRight, Target, Home } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { TrendingUp, Wallet, ArrowUpRight, Home } from "lucide-react";
 
 const monthlyData = [
   { name: "ינואר", income: 24000, expenses: 10000, savings: 14000 },
@@ -119,7 +117,7 @@ export default function Analytics() {
 
           <Card className="border-none shadow-sm">
             <CardHeader><CardTitle className="font-heading text-lg text-right">התפלגות הוצאות ממוצעת</CardTitle></CardHeader>
-            <CardContent className="h-[300px] flex items-center justify-center">
+            <CardContent className="h-[300px] flex items-center justify-center relative">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
