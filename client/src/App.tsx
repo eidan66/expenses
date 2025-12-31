@@ -10,11 +10,15 @@ import Dashboard from "@/pages/dashboard";
 import Budget from "@/pages/budget";
 import Goals from "@/pages/goals";
 import Profile from "@/pages/profile";
+import AuthPage from "@/pages/auth";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Landing} />
+      <Route path="/auth" component={AuthPage} />
+      <Route path="/login" component={AuthPage} />
+      <Route path="/register" component={AuthPage} />
       <Route path="/onboarding" component={Onboarding} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/budget" component={Budget} />
