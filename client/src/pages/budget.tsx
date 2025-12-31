@@ -1,163 +1,129 @@
 import Layout from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BudgetPieChart } from "@/components/budget-chart";
+import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { Plus, Coffee, Home, ShoppingBag, Utensils, Heart, Shield, Shirt, Tv, Smartphone, Car, Bike, Train, Dog, ShoppingCart, Globe, Wallet, AlertCircle } from "lucide-react";
+import { Plus, Home, Wallet, AlertCircle, ShoppingBag, Shield, ShoppingCart, Car, Heart, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { BudgetPieChart } from "@/components/budget-chart";
 
 export default function Budget() {
-  const [income, setIncome] = useState(20000);
+  const [income, setIncome] = useState(24000);
   const minSavingsRate = 0.5;
   const minSavingsAmount = income * minSavingsRate;
 
   const categories = [
-    { 
-      name: "חיסכון", 
-      type: "Savings", 
-      budget: 10000, 
-      spent: 10000, 
-      icon: Wallet, 
-      color: "bg-emerald-500",
-      items: ["יעדים ארוכי טווח", "קרן חירום"]
-    },
-    { 
-      name: "דיור", 
-      type: "Needs", 
-      budget: 6000, 
-      spent: 5800, 
-      icon: Home, 
-      color: "bg-blue-500",
-      items: ["שכירות", "חשמל", "מים", "אינטרנט", "תמי 4"]
-    },
-    { 
-      name: "בריאות וביטוח", 
-      type: "Needs", 
-      budget: 1500, 
-      spent: 1400, 
-      icon: Shield, 
-      color: "bg-blue-400",
-      items: ["שיניים", "ביטוח חיים", "ביטוח בריאות"]
-    },
-    { 
-      name: "צריכה", 
-      type: "Needs", 
-      budget: 3000, 
-      spent: 2400, 
-      icon: ShoppingBag, 
-      color: "bg-blue-300",
-      items: ["אוכל", "טואלטיקה"]
-    },
-    { 
-      name: "תחבורה", 
-      type: "Needs", 
-      budget: 2000, 
-      spent: 1800, 
-      icon: Car, 
-      color: "bg-blue-200",
-      items: ["דלק", "טסט", "ביטוח", "תחבורה ציבורית"]
-    },
-    { 
-      name: "רצונות ודיגיטל", 
-      type: "Wants", 
-      budget: 2500, 
-      spent: 2800, 
-      icon: ShoppingCart, 
-      color: "bg-orange-400",
-      items: ["קניות אונליין", "נטפליקס", "ChatGPT", "ביגוד"]
-    }
+    { name: "חיסכון", type: "Savings", budget: 12000, spent: 12000, icon: Wallet, color: "bg-emerald-500", items: ["יעד ארוך טווח", "קרן חירום"] },
+    { name: "דיור", type: "Needs", budget: 6500, spent: 6500, icon: Home, color: "bg-blue-500", items: ["שכירות", "חשמל", "מים", "ארנונה", "תמי 4"] },
+    { name: "בריאות וביטוח", type: "Needs", budget: 1200, spent: 1100, icon: Shield, color: "bg-blue-400", items: ["שיניים", "ביטוח חיים", "ביטוח בריאות"] },
+    { name: "צריכה", type: "Needs", budget: 2500, spent: 2200, icon: ShoppingBag, color: "bg-blue-300", items: ["אוכל", "טואלטיקה"] },
+    { name: "תחבורה", type: "Needs", budget: 1800, spent: 1950, icon: Car, color: "bg-blue-200", items: ["דלק", "טסט", "ביטוח"] },
+    { name: "רצונות ודיגיטל", type: "Wants", budget: 1500, spent: 1600, icon: ShoppingCart, color: "bg-orange-400", items: ["קניות אונליין", "נטפליקס", "ChatGPT"] }
   ];
 
   const totalBudgetedSavings = categories.find(c => c.type === "Savings")?.budget || 0;
-  const currentSavingsRate = totalBudgetedSavings / income;
-  const isRateValid = currentSavingsRate >= minSavingsRate;
+  const currentSavingsRate = (totalBudgetedSavings / income) * 100;
+  const isRateValid = currentSavingsRate >= 50;
 
   return (
     <Layout>
-      <div className="space-y-8" dir="rtl">
+      <div className="space-y-6" dir="rtl">
         <div className="flex justify-between items-end">
           <div>
-            <h1 className="text-3xl font-heading font-bold text-foreground">ניהול תקציב</h1>
-            <p className="text-muted-foreground">מבטיחים לפחות 50% חיסכון עבור הבית שלכם.</p>
+            <h1 className="text-3xl font-heading font-bold">ניהול תקציב</h1>
+            <p className="text-muted-foreground">תכנון חודשי מול ביצוע בפועל</p>
           </div>
-          <div className="flex gap-4">
+          <div className="flex gap-3">
              <div className={cn(
-               "px-4 py-2 rounded-full font-bold flex items-center gap-2",
-               isRateValid ? "bg-emerald-100 text-emerald-700" : "bg-destructive/10 text-destructive"
+               "px-4 py-2 rounded-xl font-bold flex items-center gap-2 border",
+               isRateValid ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-destructive/10 text-destructive border-destructive/20"
              )}>
-               שיעור חיסכון: {(currentSavingsRate * 100).toFixed(0)}%
+               שיעור חיסכון: {currentSavingsRate.toFixed(0)}%
                {!isRateValid && <AlertCircle className="w-4 h-4" />}
              </div>
-             <Button className="rounded-full">
-               <Plus className="w-4 h-4 mr-2" /> הוספת קטגוריה
-             </Button>
+             <Button className="rounded-full shadow-lg shadow-primary/20"><Plus className="w-4 h-4 mr-2" />קטגוריה חדשה</Button>
           </div>
         </div>
 
         {!isRateValid && (
-          <div className="bg-destructive/10 border border-destructive/20 p-4 rounded-xl text-destructive text-sm flex items-center gap-3">
+          <div className="bg-destructive/10 border border-destructive/20 p-4 rounded-xl text-destructive text-sm flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
             <AlertCircle className="w-5 h-5 flex-shrink-0" />
-            <p><strong>אזהרה:</strong> שיעור החיסכון הנוכחי נמוך מהמינימום של 50%. מומלץ לצמצם הוצאות בקטגוריית "רצונות" כדי לעמוד ביעד.</p>
+            <p><strong>אזהרה:</strong> שיעור החיסכון המתוכנן נמוך מ-50%. המערכת דורשת הקצאה של לפחות ₪{minSavingsAmount.toLocaleString()} לחיסכון.</p>
           </div>
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <Card className="lg:col-span-1 border-none shadow-sm bg-card h-fit lg:sticky lg:top-8">
-            <CardContent className="pt-6">
-              <BudgetPieChart dataOverride={[
-                { category: "Savings", amount: totalBudgetedSavings, fill: "var(--color-chart-1)" },
-                { category: "Needs", amount: income * 0.35, fill: "var(--color-chart-2)" },
-                { category: "Wants", amount: income * 0.15, fill: "var(--color-chart-3)" },
-              ]} />
-              
-              <div className="space-y-4 mt-6">
-                <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100 text-right">
-                  <p className="text-xs text-emerald-600 font-semibold uppercase tracking-wider">חיסכון נדרש (50%)</p>
-                  <p className="text-2xl font-bold text-emerald-700">₪{minSavingsAmount.toLocaleString()}</p>
+          <div className="lg:col-span-1 space-y-6">
+            <Card className="border-none shadow-sm">
+              <CardContent className="pt-6">
+                <BudgetPieChart dataOverride={[
+                  { category: "Savings", amount: totalBudgetedSavings, fill: "var(--color-chart-1)" },
+                  { category: "Needs", amount: income * 0.3, fill: "var(--color-chart-2)" },
+                  { category: "Wants", amount: income * 0.2, fill: "var(--color-chart-3)" },
+                ]} />
+              </CardContent>
+            </Card>
+
+            <Card className="border-none shadow-sm bg-primary/5">
+              <CardHeader><CardTitle className="font-heading text-lg">סיכום חיסכון</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex justify-between items-center p-3 bg-white rounded-xl shadow-2xs">
+                  <span className="text-sm text-muted-foreground">הכנסה נטו</span>
+                  <span className="font-bold">₪{income.toLocaleString()}</span>
                 </div>
-                <div className="p-4 bg-muted rounded-xl text-right">
-                  <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">הכנסה חודשית נטו</p>
-                  <p className="text-2xl font-bold">₪{income.toLocaleString()}</p>
+                <div className="flex justify-between items-center p-3 bg-emerald-50 rounded-xl border border-emerald-100">
+                  <span className="text-sm text-emerald-700">מינימום חיסכון (50%)</span>
+                  <span className="font-bold text-emerald-800">₪{minSavingsAmount.toLocaleString()}</span>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+                <div className="flex justify-between items-center p-3 bg-white rounded-xl shadow-2xs">
+                  <span className="text-sm text-muted-foreground">הקצאה בפועל</span>
+                  <span className="font-bold text-primary">₪{totalBudgetedSavings.toLocaleString()}</span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
           <div className="lg:col-span-2 space-y-4">
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div className="p-4 bg-muted/30 rounded-2xl border border-dashed border-muted-foreground/20 text-center cursor-pointer hover:bg-muted/50 transition-colors">
+                <Settings2 className="w-5 h-5 mx-auto mb-2 text-muted-foreground" />
+                <span className="text-xs font-medium text-muted-foreground">הגדרות תקציב חודשי</span>
+              </div>
+              <div className="p-4 bg-muted/30 rounded-2xl border border-dashed border-muted-foreground/20 text-center cursor-pointer hover:bg-muted/50 transition-colors">
+                <Plus className="w-5 h-5 mx-auto mb-2 text-muted-foreground" />
+                <span className="text-xs font-medium text-muted-foreground">הוספת תת-קטגוריה</span>
+              </div>
+            </div>
+
             {categories.map((cat) => (
               <Card key={cat.name} className={cn(
-                "border-none shadow-sm overflow-hidden transition-all text-right",
-                cat.type === "Savings" && "ring-2 ring-emerald-500 ring-offset-2"
+                "border-none shadow-sm overflow-hidden text-right group transition-all hover:shadow-md",
+                cat.type === "Savings" && "bg-emerald-50/20 ring-1 ring-emerald-500/20"
               )}>
-                <CardContent className="p-6">
+                <CardContent className="p-5">
                   <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-4">
-                      <div className={cn(cat.color, "p-3 rounded-xl text-white shadow-lg")}>
+                    <div className="flex items-center gap-3">
+                      <div className={cn(cat.color, "p-2.5 rounded-xl text-white shadow-sm")}>
                         <cat.icon className="w-5 h-5" />
                       </div>
                       <div>
-                        <h4 className="font-heading font-bold text-lg">{cat.name}</h4>
-                        <p className="text-xs text-muted-foreground">הקצאת {cat.type === "Savings" ? "חיסכון" : cat.type === "Needs" ? "צרכים" : "רצונות"}</p>
+                        <h4 className="font-heading font-bold">{cat.name}</h4>
+                        <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-tighter">
+                          {cat.type === "Savings" ? "חיסכון חובה" : cat.type === "Needs" ? "הוצאה חיונית" : "הוצאה גמישה"}
+                        </p>
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-xl font-bold">₪{cat.spent.toLocaleString()}</p>
-                      <p className="text-xs text-muted-foreground">מתוך תקציב של ₪{cat.budget.toLocaleString()}</p>
+                      <p className="text-lg font-bold">₪{cat.spent.toLocaleString()}</p>
+                      <p className="text-[10px] text-muted-foreground">מתוך ₪{cat.budget.toLocaleString()}</p>
                     </div>
                   </div>
                   
                   <div className="space-y-3">
-                    <div className="relative">
-                      <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                        <div 
-                          className={cn("h-full transition-all", cat.spent > cat.budget ? "bg-destructive" : cat.color)}
-                          style={{ width: `${Math.min((cat.spent / cat.budget) * 100, 100)}%` }}
-                        />
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap gap-2 justify-end">
+                    <Progress value={(cat.spent / cat.budget) * 100} className="h-2" indicatorClassName={cat.spent > cat.budget ? "bg-destructive" : cat.color} />
+                    <div className="flex flex-wrap gap-1.5 justify-end">
                       {cat.items.map(item => (
-                        <span key={item} className="text-[10px] px-2 py-1 bg-muted rounded-full text-muted-foreground font-medium">
+                        <span key={item} className="text-[9px] px-2 py-0.5 bg-white border rounded-full text-muted-foreground font-bold">
                           {item}
                         </span>
                       ))}

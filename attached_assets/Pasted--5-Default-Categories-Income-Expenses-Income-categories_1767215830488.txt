@@ -1,0 +1,89 @@
+### 5. Default Categories (Income & Expenses)
+
+#### Income categories
+- **Idan Income** (`הכנסות עידן`)
+- **Sapir Income** (`הכנסות ספיר`)
+- **Other Income** (`הכנסות אחר`)
+
+#### Expense categories (same as before with updates)
+- Housing: (rent, home insurance, HOA, property tax, electricity, water, gas, internet, water filtering/Tami 4, other).
+- Health: general medicine, dental, other.
+- Insurance: health insurance (not employer-funded), life insurance, other.
+- Consumables: food, toiletries/hygiene.
+- Clothing & Footwear: single category combining both.
+- Regular Bills: pay TV, Netflix, Disney+, surveillance cameras, other.
+- Communication: mobile phone.
+- Transportation:
+  - **Car**: insurance, registration (test), fuel, maintenance/repairs, parking, other.
+  - **Motorcycle**: insurance, registration, fuel, maintenance/repairs, parking, other.
+  - **Public Transportation**
+- Pets: Daisy expenses, fish expenses.
+- Online Shopping: Temu, Shein, AliExpress, other.
+- Digital Services: ChatGPT/GPT, Cursor, online apps, Google Drive, other.
+- Miscellaneous: Cash, other.
+
+For each expense item, users can add free‑form **notes**, which must be stored and searchable.
+
+### 6. UI/UX Requirements
+
+- **Hebrew only**, full **RTL** layout.
+- **Mobile‑First** responsive design; implement bottom navigation on mobile and sidebar on desktop.
+- **Accessibility**: ARIA labels, keyboard navigation, proper color contrast.
+- **Simple Language**: Avoid jargon. Use clear terms like “הכנסה” (income), “הוצאה” (expense), “חיסכון” (savings). Add tooltips explaining any unavoidable financial terms.
+- **Loading/Errors**: Skeletons and clear error messages.
+- **Notes UX**: On mobile, a small “💬” icon opens a bottom sheet to view/edit notes. On desktop, notes appear in a column or via tooltip.
+
+### 7. Core Features
+
+1. **Dashboard**:
+   - Display total monthly income, total expenses, **minimum savings (50 % of income)**, actual savings, and monthly balance (income – expenses – savings).
+   - Progress bar toward current savings goal (₪500 K → ₪600 K → ₪700 K).
+   - Quick actions (add expense, add income, set goal).
+   - Alerts for approaching budget thresholds or milestones.
+
+2. **Budget Management**:
+   - Table listing categories and subcategories with planned vs. actual amounts.
+   - Column for **Savings** that auto‑calculates 50 % of income (editable to increase).
+   - Ability to add/edit/delete categories and items dynamically.
+   - Date/month selector; filter and search by category or notes.
+   - Inline edit or dialog for each item with amount, month, notes, and “Save” button.
+
+3. **Savings Goals**:
+   - Allow users to define or edit goals (₪500 K, ₪600 K, ₪700 K) with target dates.
+   - Show progress bars and estimated achievement date based on current savings rate.
+   - If actual savings exceed the minimum, apply surplus to the current goal.
+
+4. **Analytics**:
+   - Charts (Recharts) to visualize:
+     - Expense distribution by category.
+     - Income vs. expenses vs. savings.
+     - Savings accumulation over time.
+     - Breakdowns of subcategories.
+   - Statistics such as average monthly balance, **Savings Rate** (highlight whether ≥ 50 % or not), burn rate, runway (savings / burn rate), top expense categories, expense growth rate, etc.
+
+5. **Comparisons**:
+   - Compare current month vs. previous month, any month vs. any month, quarter vs. quarter, year vs. year.
+   - Show percentage change per category and highlight major differences.
+   - Include notes differences in comparisons.
+
+6. **Edit History & Undo**:
+   - Log all changes (with notes) and provide filters by user/date/action/category.
+   - Display before/after JSON in a diff UI.
+   - Allow “undo” where feasible (e.g., revert the last update).
+
+7. **Export**:
+   - **PDF**: Professional layout with logo, tables (including notes), charts embedded, summary statistics, and generated date. User selects which sections to include.
+   - **Excel**: Worksheet per main category with notes column; summary sheet; formulas; auto-fit columns; distinct “Savings” column showing at least 50 % of income.
+
+8. **Notifications**:
+   - In‑app toasts/alerts for CRUD operations, overspending, approaching savings milestones (25 %, 50 %, 75 %, 90 %), new month, unusual spikes, or missing notes.
+   - Settings to enable/disable each notification and define thresholds.
+   - (Optional) push notifications for monthly data entry reminders or when savings drop below the required 50 %.
+
+9. **Settings Page**:
+   - Manage user profile.
+   - Notification preferences.
+   - Display preferences (e.g., show notes by default).
+   - Data import/export (including notes).
+   - Account deletion.
+   - Savings settings: define target ratios (≥ 50 %) and adjust maximum monthly savings percentage.
