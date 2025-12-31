@@ -19,7 +19,7 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart"
 
-const chartData = [
+const defaultData = [
   { category: "Needs", amount: 10000, fill: "var(--color-chart-2)" },
   { category: "Wants", amount: 6000, fill: "var(--color-chart-3)" },
   { category: "Savings", amount: 4000, fill: "var(--color-chart-1)" },
@@ -30,29 +30,30 @@ const chartConfig = {
     label: "Amount",
   },
   Needs: {
-    label: "Needs (50%)",
+    label: "Needs",
     color: "hsl(var(--chart-2))",
   },
   Wants: {
-    label: "Wants (30%)",
+    label: "Wants",
     color: "hsl(var(--chart-3))",
   },
   Savings: {
-    label: "Savings (20%)",
+    label: "Savings",
     color: "hsl(var(--chart-1))",
   },
 } satisfies ChartConfig
 
-export function BudgetPieChart() {
+export function BudgetPieChart({ dataOverride }: { dataOverride?: any[] }) {
+  const chartData = dataOverride || defaultData;
   const totalAmount = React.useMemo(() => {
     return chartData.reduce((acc, curr) => acc + curr.amount, 0)
-  }, [])
+  }, [chartData])
 
   return (
     <Card className="flex flex-col border-none shadow-none bg-transparent">
       <CardHeader className="items-center pb-0">
         <CardTitle className="font-heading">Budget Allocation</CardTitle>
-        <CardDescription>Monthly 50/30/20 Split</CardDescription>
+        <CardDescription>Monthly Split</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 pb-0">
         <ChartContainer
@@ -107,9 +108,6 @@ export function BudgetPieChart() {
       <CardFooter className="flex-col gap-2 text-sm">
         <div className="flex items-center gap-2 font-medium leading-none">
           You are on track this month <TrendingUp className="h-4 w-4 text-primary" />
-        </div>
-        <div className="leading-none text-muted-foreground">
-          Showing projected distribution for current month
         </div>
       </CardFooter>
     </Card>

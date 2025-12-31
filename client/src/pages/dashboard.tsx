@@ -2,7 +2,7 @@ import Layout from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { Plus, ArrowUpRight, ArrowDownRight, TrendingUp, Home, Wallet } from "lucide-react";
+import { Plus, ArrowUpRight, ArrowDownRight, TrendingUp, Home, Wallet, AlertCircle, FileText } from "lucide-react";
 import { BudgetPieChart } from "@/components/budget-chart";
 import { cn } from "@/lib/utils";
 import {
@@ -15,66 +15,95 @@ import {
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
 
 export default function Dashboard() {
+  const income = 24000;
   const goalAmount = 600000;
   const currentSavings = 145000;
+  const monthlySavings = 13000; // > 50%
+  const savingsRate = (monthlySavings / income) * 100;
   const progressPercentage = (currentSavings / goalAmount) * 100;
   
-  const [transactions, setTransactions] = useState([
-    { id: 1, title: "Supermarket", amount: -450, category: "Needs", date: "Today" },
-    { id: 2, title: "Salary Deposit", amount: 12000, category: "Income", date: "Yesterday" },
-    { id: 3, title: "Cinema", amount: -80, category: "Wants", date: "Yesterday" },
-    { id: 4, title: "Electric Bill", amount: -320, category: "Needs", date: "2 days ago" },
+  const [searchQuery, setSearchQuery] = useState("");
+  const [transactions] = useState([
+    { id: 1, title: "Supermarket", amount: -450, category: "Consumables", date: "Today", notes: "Weekly shopping at Shufersal" },
+    { id: 2, title: "Salary Deposit", amount: 24000, category: "Income", date: "Yesterday", notes: "" },
+    { id: 3, title: "Netflix", amount: -60, category: "Regular Bills", date: "Yesterday", notes: "Premium subscription" },
+    { id: 4, title: "Electric Bill", amount: -320, category: "Housing", date: "2 days ago", notes: "High usage due to AC" },
+    { id: 5, title: "Daisy Grooming", amount: -150, category: "Pets", date: "3 days ago", notes: "Monthly haircut for Daisy" },
   ]);
+
+  const filteredTransactions = transactions.filter(t => 
+    t.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    t.notes.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <Layout>
       <div className="space-y-8">
-        <div className="flex justify-between items-start">
+        <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
           <div>
             <h1 className="text-3xl font-heading font-bold text-foreground">Welcome back, Sarah & Tom</h1>
-            <p className="text-muted-foreground">You're making great progress on your home goal.</p>
+            <p className="text-muted-foreground">You're maintaining a healthy {(savingsRate).toFixed(0)}% savings rate.</p>
           </div>
           
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button className="rounded-full shadow-lg shadow-primary/20 hover:shadow-primary/30">
-                <Plus className="mr-2 h-4 w-4" /> Add Transaction
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add Transaction</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 pt-4">
-                <div className="space-y-2">
-                  <Label>Description</Label>
-                  <Input placeholder="e.g. Weekly Groceries" />
+          <div className="flex gap-3">
+            <div className={cn(
+              "px-4 py-2 rounded-full font-bold flex items-center gap-2 shadow-sm border",
+              savingsRate >= 50 ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-destructive/10 text-destructive border-destructive/20"
+            )}>
+              Rate: {savingsRate.toFixed(0)}%
+              {savingsRate < 50 && <AlertCircle className="w-4 h-4" />}
+            </div>
+            
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button className="rounded-full shadow-lg shadow-primary/20 hover:shadow-primary/30">
+                  <Plus className="mr-2 h-4 w-4" /> Add Transaction
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle className="font-heading">New Transaction</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 pt-4">
+                  <div className="space-y-2">
+                    <Label>Description</Label>
+                    <Input placeholder="e.g. Weekly Groceries" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Amount (NIS)</Label>
+                      <Input type="number" placeholder="0.00" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Category</Label>
+                      <Select>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="housing">Housing</SelectItem>
+                          <SelectItem value="consumables">Consumables</SelectItem>
+                          <SelectItem value="health">Health</SelectItem>
+                          <SelectItem value="transport">Transportation</SelectItem>
+                          <SelectItem value="pets">Pets</SelectItem>
+                          <SelectItem value="savings">Savings</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Notes (Searchable)</Label>
+                    <Textarea placeholder="Add details, tags, or reminders..." className="resize-none h-20" />
+                  </div>
+                  <Button className="w-full mt-4 rounded-full h-12 text-lg">Record Transaction</Button>
                 </div>
-                <div className="space-y-2">
-                  <Label>Amount (NIS)</Label>
-                  <Input type="number" placeholder="0.00" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Category</Label>
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="needs">Need (50%)</SelectItem>
-                      <SelectItem value="wants">Want (30%)</SelectItem>
-                      <SelectItem value="savings">Saving (20%)</SelectItem>
-                      <SelectItem value="income">Income</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button className="w-full mt-4 rounded-full">Save Transaction</Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
 
         <Card className="border-none shadow-xl bg-gradient-to-br from-primary/90 to-primary/80 text-primary-foreground overflow-hidden relative">
@@ -86,130 +115,96 @@ export default function Dashboard() {
                   <Home className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h3 className="font-heading font-semibold text-lg opacity-90">Dream Home Fund</h3>
+                  <h3 className="font-heading font-semibold text-lg opacity-90">Dream Home Goal</h3>
                   <p className="text-sm opacity-75">Target: ₪{goalAmount.toLocaleString()}</p>
                 </div>
               </div>
               <div className="text-right">
                 <span className="text-3xl font-bold font-heading">₪{currentSavings.toLocaleString()}</span>
-                <p className="text-sm opacity-75">Saved so far</p>
+                <p className="text-sm opacity-75">Saved ({(progressPercentage).toFixed(1)}%)</p>
               </div>
             </div>
             
             <div className="space-y-2">
-              <div className="flex justify-between text-sm font-medium opacity-90">
-                <span>Progress</span>
-                <span>{progressPercentage.toFixed(1)}%</span>
-              </div>
               <Progress value={progressPercentage} className="h-3 bg-black/20" indicatorClassName="bg-white" />
             </div>
 
-            <div className="mt-6 flex gap-4">
-              <div className="bg-white/10 rounded-lg p-3 backdrop-blur-sm flex-1">
-                <p className="text-xs opacity-75">Monthly Target</p>
-                <p className="font-semibold">₪4,000</p>
+            <div className="mt-6 flex flex-wrap gap-4">
+              <div className="bg-white/10 rounded-lg p-3 backdrop-blur-sm flex-1 min-w-[120px]">
+                <p className="text-xs opacity-75">Monthly Savings</p>
+                <p className="font-bold text-lg">₪{monthlySavings.toLocaleString()}</p>
               </div>
-              <div className="bg-white/10 rounded-lg p-3 backdrop-blur-sm flex-1">
-                <p className="text-xs opacity-75">Est. Completion</p>
-                <p className="font-semibold">Aug 2028</p>
+              <div className="bg-white/10 rounded-lg p-3 backdrop-blur-sm flex-1 min-w-[120px]">
+                <p className="text-xs opacity-75">Min. Req (50%)</p>
+                <p className="font-bold text-lg">₪{(income/2).toLocaleString()}</p>
+              </div>
+              <div className="bg-white/10 rounded-lg p-3 backdrop-blur-sm flex-1 min-w-[120px]">
+                <p className="text-xs opacity-75">Est. Arrival</p>
+                <p className="font-bold text-lg">July 2027</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="md:col-span-2 border-none shadow-sm">
-            <CardHeader>
-              <CardTitle className="font-heading">Monthly Budget (50/30/20)</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col sm:flex-row items-center justify-between">
-              <div className="w-full sm:w-1/2">
-                <BudgetPieChart />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <Card className="lg:col-span-2 border-none shadow-sm overflow-hidden">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="font-heading">Activity & Search</CardTitle>
+              <div className="relative w-64">
+                <Input 
+                  placeholder="Search notes or items..." 
+                  className="rounded-full h-9 text-sm pr-10"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                <FileText className="absolute right-3 top-2 w-5 h-5 text-muted-foreground" />
               </div>
-              <div className="w-full sm:w-1/2 space-y-4 p-4">
-                <div className="flex items-center justify-between p-3 bg-secondary/20 rounded-lg border border-secondary/50">
-                  <div className="flex items-center gap-3">
-                    <div className="w-3 h-3 rounded-full bg-[hsl(var(--chart-2))]" />
-                    <span className="font-medium">Needs</span>
-                  </div>
-                  <span className="font-bold">₪10,000</span>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-secondary/10 rounded-lg border border-secondary/30">
-                  <div className="flex items-center gap-3">
-                    <div className="w-3 h-3 rounded-full bg-[hsl(var(--chart-3))]" />
-                    <span className="font-medium">Wants</span>
-                  </div>
-                  <span className="font-bold">₪6,000</span>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-primary/10 rounded-lg border border-primary/20">
-                  <div className="flex items-center gap-3">
-                    <div className="w-3 h-3 rounded-full bg-[hsl(var(--chart-1))]" />
-                    <span className="font-medium">Savings</span>
-                  </div>
-                  <span className="font-bold text-primary">₪4,000</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-none shadow-sm h-full">
-            <CardHeader>
-              <CardTitle className="font-heading">Recent Activity</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {transactions.map((t) => (
-                  <div key={t.id} className="flex items-center justify-between group cursor-pointer hover:bg-muted/50 p-2 rounded-lg transition-colors">
-                    <div className="flex items-center gap-3">
+              <div className="space-y-1">
+                {filteredTransactions.map((t) => (
+                  <div key={t.id} className="flex items-center justify-between p-3 hover:bg-muted/50 rounded-xl transition-all cursor-pointer group">
+                    <div className="flex items-center gap-4">
                       <div className={cn(
-                        "p-2 rounded-full",
-                        t.amount > 0 ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                        "p-2.5 rounded-xl",
+                        t.amount > 0 ? "bg-emerald-50 text-emerald-600" : "bg-muted text-muted-foreground group-hover:bg-white"
                       )}>
-                        {t.amount > 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
+                        {t.amount > 0 ? <ArrowUpRight className="w-5 h-5" /> : <ArrowDownRight className="w-5 h-5" />}
                       </div>
                       <div>
-                        <p className="font-medium text-sm">{t.title}</p>
-                        <p className="text-xs text-muted-foreground">{t.date}</p>
+                        <p className="font-bold text-sm text-foreground">{t.title}</p>
+                        <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">{t.category} • {t.date}</p>
+                        {t.notes && <p className="text-xs text-muted-foreground mt-1 line-clamp-1 italic">"{t.notes}"</p>}
                       </div>
                     </div>
                     <span className={cn(
-                      "font-semibold text-sm",
-                      t.amount > 0 ? "text-primary" : "text-foreground"
+                      "font-bold font-heading",
+                      t.amount > 0 ? "text-emerald-600" : "text-foreground"
                     )}>
-                      {t.amount > 0 ? "+" : ""}₪{Math.abs(t.amount)}
+                      {t.amount > 0 ? "+" : ""}₪{Math.abs(t.amount).toLocaleString()}
                     </span>
                   </div>
                 ))}
-                <Button variant="ghost" className="w-full text-xs text-muted-foreground mt-2">View All</Button>
               </div>
             </CardContent>
           </Card>
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-           <Card className="border-none shadow-sm bg-accent/20">
-              <CardContent className="p-6 flex items-center gap-4">
-                <div className="p-3 bg-background rounded-full shadow-sm">
-                  <TrendingUp className="w-6 h-6 text-accent-foreground" />
-                </div>
-                <div>
-                  <h4 className="font-heading font-semibold text-accent-foreground">Spending Insight</h4>
-                  <p className="text-sm text-muted-foreground">You spent 15% less on dining out this week compared to last month. Great job!</p>
-                </div>
-              </CardContent>
-           </Card>
-           
-           <Card className="border-none shadow-sm bg-secondary/20">
-              <CardContent className="p-6 flex items-center gap-4">
-                 <div className="p-3 bg-background rounded-full shadow-sm">
-                  <Wallet className="w-6 h-6 text-secondary-foreground" />
-                </div>
-                <div>
-                  <h4 className="font-heading font-semibold text-secondary-foreground">Savings Tip</h4>
-                  <p className="text-sm text-muted-foreground">Automate your transfer of ₪4,000 to your savings account to never miss a goal.</p>
-                </div>
-              </CardContent>
-           </Card>
+          <Card className="border-none shadow-sm h-fit">
+            <CardHeader>
+              <CardTitle className="font-heading">Savings Rule</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 text-center">
+                <p className="text-3xl font-bold text-emerald-600 font-heading tracking-tight">{(savingsRate).toFixed(0)}%</p>
+                <p className="text-xs font-semibold text-emerald-700/70 uppercase">Current Savings Rate</p>
+              </div>
+              <div className="text-xs text-muted-foreground leading-relaxed">
+                <p className="font-semibold text-foreground mb-1">How it works:</p>
+                NestEgg enforces a <span className="text-emerald-600 font-bold">50% minimum savings rule</span>. Any income left after fixed needs is automatically suggested for your home fund.
+              </div>
+              <Button variant="outline" className="w-full rounded-full text-xs h-9">Configure Rule</Button>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </Layout>
