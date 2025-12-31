@@ -2,37 +2,81 @@ import Layout from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { Plus, ArrowUpRight, ArrowDownRight, TrendingUp, Home, Wallet, CreditCard } from "lucide-react";
+import { Plus, ArrowUpRight, ArrowDownRight, TrendingUp, Home, Wallet } from "lucide-react";
 import { BudgetPieChart } from "@/components/budget-chart";
 import { cn } from "@/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useState } from "react";
 
 export default function Dashboard() {
   const goalAmount = 600000;
   const currentSavings = 145000;
   const progressPercentage = (currentSavings / goalAmount) * 100;
   
-  const transactions = [
+  const [transactions, setTransactions] = useState([
     { id: 1, title: "Supermarket", amount: -450, category: "Needs", date: "Today" },
     { id: 2, title: "Salary Deposit", amount: 12000, category: "Income", date: "Yesterday" },
     { id: 3, title: "Cinema", amount: -80, category: "Wants", date: "Yesterday" },
     { id: 4, title: "Electric Bill", amount: -320, category: "Needs", date: "2 days ago" },
-  ];
+  ]);
 
   return (
     <Layout>
       <div className="space-y-8">
-        {/* Header */}
         <div className="flex justify-between items-start">
           <div>
             <h1 className="text-3xl font-heading font-bold text-foreground">Welcome back, Sarah & Tom</h1>
             <p className="text-muted-foreground">You're making great progress on your home goal.</p>
           </div>
-          <Button className="rounded-full shadow-lg shadow-primary/20 hover:shadow-primary/30">
-            <Plus className="mr-2 h-4 w-4" /> Add Transaction
-          </Button>
+          
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button className="rounded-full shadow-lg shadow-primary/20 hover:shadow-primary/30">
+                <Plus className="mr-2 h-4 w-4" /> Add Transaction
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add Transaction</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 pt-4">
+                <div className="space-y-2">
+                  <Label>Description</Label>
+                  <Input placeholder="e.g. Weekly Groceries" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Amount (NIS)</Label>
+                  <Input type="number" placeholder="0.00" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Category</Label>
+                  <Select>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="needs">Need (50%)</SelectItem>
+                      <SelectItem value="wants">Want (30%)</SelectItem>
+                      <SelectItem value="savings">Saving (20%)</SelectItem>
+                      <SelectItem value="income">Income</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button className="w-full mt-4 rounded-full">Save Transaction</Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
 
-        {/* Main Goal Card */}
         <Card className="border-none shadow-xl bg-gradient-to-br from-primary/90 to-primary/80 text-primary-foreground overflow-hidden relative">
           <div className="absolute top-0 right-0 p-32 bg-white/10 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2" />
           <CardContent className="p-8 relative z-10">
@@ -73,9 +117,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Grid Layout */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Budget Chart */}
           <Card className="md:col-span-2 border-none shadow-sm">
             <CardHeader>
               <CardTitle className="font-heading">Monthly Budget (50/30/20)</CardTitle>
@@ -110,7 +152,6 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          {/* Recent Transactions */}
           <Card className="border-none shadow-sm h-full">
             <CardHeader>
               <CardTitle className="font-heading">Recent Activity</CardTitle>
@@ -145,7 +186,6 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        {/* Categories / Insights */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
            <Card className="border-none shadow-sm bg-accent/20">
               <CardContent className="p-6 flex items-center gap-4">

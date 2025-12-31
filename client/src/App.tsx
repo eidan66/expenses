@@ -7,6 +7,9 @@ import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import Onboarding from "@/pages/onboarding";
 import Dashboard from "@/pages/dashboard";
+import Budget from "@/pages/budget";
+import Goals from "@/pages/goals";
+import Profile from "@/pages/profile";
 
 function Router() {
   return (
@@ -14,6 +17,9 @@ function Router() {
       <Route path="/" component={Landing} />
       <Route path="/onboarding" component={Onboarding} />
       <Route path="/dashboard" component={Dashboard} />
+      <Route path="/budget" component={Budget} />
+      <Route path="/goals" component={Goals} />
+      <Route path="/profile" component={Profile} />
       <Route component={NotFound} />
     </Switch>
   );
