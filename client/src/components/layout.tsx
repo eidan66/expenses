@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { Home, PieChart, Target, User, Menu } from "lucide-react";
+import { Home, PieChart, Target, User, Menu, BarChart2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -15,6 +15,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { href: "/dashboard", label: "סקירה כללית", icon: Home },
     { href: "/budget", label: "תקציב", icon: PieChart },
     { href: "/goals", label: "יעדים", icon: Target },
+    { href: "/analytics", label: "אנליטיקה", icon: BarChart2 },
     { href: "/profile", label: "פרופיל", icon: User },
   ];
 
@@ -68,7 +69,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             {navItems.map((item) => (
               <Link key={item.href} href={item.href}>
                 <a className={cn(
-                  "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group",
+                  "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group text-right",
                   location === item.href 
                     ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" 
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -80,7 +81,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             ))}
           </nav>
 
-          <div className="p-4 bg-secondary/30 rounded-xl border border-secondary">
+          <div className="p-4 bg-secondary/30 rounded-xl border border-secondary text-right">
             <h4 className="font-heading font-semibold text-sm mb-1 text-secondary-foreground">טיפ מהיר</h4>
             <p className="text-xs text-muted-foreground">נסו את כלל ה-50/50 כדי למקסם את החיסכון שלכם החודש.</p>
           </div>

@@ -11,6 +11,7 @@ import Budget from "@/pages/budget";
 import Goals from "@/pages/goals";
 import Profile from "@/pages/profile";
 import AuthPage from "@/pages/auth";
+import Analytics from "@/pages/analytics";
 
 function Router() {
   return (
@@ -23,6 +24,7 @@ function Router() {
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/budget" component={Budget} />
       <Route path="/goals" component={Goals} />
+      <Route path="/analytics" component={Analytics} />
       <Route path="/profile" component={Profile} />
       <Route component={NotFound} />
     </Switch>
