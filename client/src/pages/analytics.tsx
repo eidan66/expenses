@@ -109,7 +109,7 @@ export default function Analytics() {
                   <Tooltip 
                     contentStyle={{ borderRadius: "12px", border: "none", boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)" }}
                   />
-                  <Area type="monotone" dataKey="total" name="סה\"כ נחסך" stroke="hsl(var(--primary))" strokeWidth={3} fillOpacity={1} fill="url(#colorTotal)" />
+                  <Area type="monotone" dataKey="total" name="חיסכון מצטבר" stroke="hsl(var(--primary))" strokeWidth={3} fillOpacity={1} fill="url(#colorTotal)" />
                 </AreaChart>
               </ResponsiveContainer>
             </CardContent>
