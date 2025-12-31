@@ -6,14 +6,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Users, User, Home, ArrowRight, ArrowLeft } from "lucide-react";
+import { Users, User, Home, ArrowLeft, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function Onboarding() {
   const [step, setStep] = useState(1);
   const [, setLocation] = useLocation();
   const [formData, setFormData] = useState({
-    type: "together", // together | solo
+    type: "together", 
     goalAmount: "500000",
     goalDate: "",
     income: "",
@@ -35,30 +35,30 @@ export default function Onboarding() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 font-sans">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 font-sans" dir="rtl">
       <div className="w-full max-w-lg space-y-8">
         <div className="space-y-2 text-center">
           <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center text-primary-foreground font-bold font-heading mx-auto text-xl mb-4">
             N
           </div>
           <Progress value={progress} className="h-2 w-full bg-muted" />
-          <p className="text-xs text-muted-foreground pt-2">Step {step} of {totalSteps}</p>
+          <p className="text-xs text-muted-foreground pt-2">שלב {step} מתוך {totalSteps}</p>
         </div>
 
         <AnimatePresence mode="wait">
           <motion.div
             key={step}
-            initial={{ opacity: 0, x: 20 }}
+            initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
+            exit={{ opacity: 0, x: 20 }}
             transition={{ duration: 0.3 }}
           >
-            <Card className="p-8 shadow-xl border-none bg-card/80 backdrop-blur-sm">
+            <Card className="p-8 shadow-xl border-none bg-card/80 backdrop-blur-sm text-right">
               {step === 1 && (
                 <div className="space-y-6">
                   <div className="text-center space-y-2">
-                    <h2 className="text-2xl font-heading font-bold">How are you saving?</h2>
-                    <p className="text-muted-foreground">Most people save faster when they do it together.</p>
+                    <h2 className="text-2xl font-heading font-bold">איך אתם חוסכים?</h2>
+                    <p className="text-muted-foreground">רוב האנשים חוסכים מהר יותר כשהם עושים זאת ביחד.</p>
                   </div>
                   
                   <div className="grid grid-cols-2 gap-4">
@@ -72,7 +72,7 @@ export default function Onboarding() {
                       )}
                     >
                       <User className="w-8 h-8" />
-                      <span className="font-semibold">Solo</span>
+                      <span className="font-semibold">לבד</span>
                     </button>
                     <button
                       onClick={() => setFormData({ ...formData, type: "together" })}
@@ -84,7 +84,7 @@ export default function Onboarding() {
                       )}
                     >
                       <Users className="w-8 h-8" />
-                      <span className="font-semibold">Together</span>
+                      <span className="font-semibold">ביחד</span>
                     </button>
                   </div>
                 </div>
@@ -93,18 +93,18 @@ export default function Onboarding() {
               {step === 2 && (
                 <div className="space-y-6">
                   <div className="text-center space-y-2">
-                    <h2 className="text-2xl font-heading font-bold">What's your goal?</h2>
-                    <p className="text-muted-foreground">Set a target for your dream home.</p>
+                    <h2 className="text-2xl font-heading font-bold">מה היעד שלכם?</h2>
+                    <p className="text-muted-foreground">קבעו יעד לבית החלומות שלכם.</p>
                   </div>
 
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label>Target Amount (NIS)</Label>
+                      <Label className="block text-right">סכום יעד (₪)</Label>
                       <div className="relative">
-                        <Home className="absolute left-3 top-3 w-5 h-5 text-muted-foreground" />
+                        <Home className="absolute right-3 top-3 w-5 h-5 text-muted-foreground" />
                         <Input 
                           type="number" 
-                          className="pl-10 h-12 text-lg" 
+                          className="pr-10 h-12 text-lg text-right" 
                           value={formData.goalAmount}
                           onChange={(e) => setFormData({...formData, goalAmount: e.target.value})}
                         />
@@ -134,24 +134,24 @@ export default function Onboarding() {
               {step === 3 && (
                 <div className="space-y-6">
                   <div className="text-center space-y-2">
-                    <h2 className="text-2xl font-heading font-bold">Monthly Income</h2>
-                    <p className="text-muted-foreground">We'll help you calculate your 50/30/20 split.</p>
+                    <h2 className="text-2xl font-heading font-bold">הכנסה חודשית</h2>
+                    <p className="text-muted-foreground">נעזור לכם לחשב את קצב החיסכון הנדרש (מינימום 50%).</p>
                   </div>
 
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label>Total Monthly Income (Net)</Label>
+                      <Label className="block text-right">סה"כ הכנסה חודשית (נטו)</Label>
                       <Input 
                         type="number" 
-                        placeholder="e.g. 20000"
-                        className="h-12 text-lg"
+                        placeholder="לדוגמה: 20000"
+                        className="h-12 text-lg text-right"
                         value={formData.income}
                         onChange={(e) => setFormData({...formData, income: e.target.value})}
                       />
                     </div>
                     
-                    <div className="p-4 bg-secondary/20 rounded-lg text-sm text-secondary-foreground">
-                      <p>Based on the 50/30/20 rule, we'll recommend saving 20% of this amount.</p>
+                    <div className="p-4 bg-emerald-50 rounded-lg text-sm text-emerald-700">
+                      <p>על פי כללי המערכת, לפחות 50% מהכנסה זו יופנו לחיסכון.</p>
                     </div>
                   </div>
                 </div>
@@ -164,10 +164,10 @@ export default function Onboarding() {
                   disabled={step === 1}
                   className="text-muted-foreground"
                 >
-                  <ArrowLeft className="mr-2 w-4 h-4" /> Back
+                   הקודם <ArrowRight className="mr-2 w-4 h-4" />
                 </Button>
                 <Button onClick={handleNext} className="rounded-full px-8">
-                  {step === totalSteps ? "Finish" : "Next"} <ArrowRight className="ml-2 w-4 h-4" />
+                  {step === totalSteps ? "סיום" : "הבא"} <ArrowLeft className="ml-2 w-4 h-4" />
                 </Button>
               </div>
             </Card>

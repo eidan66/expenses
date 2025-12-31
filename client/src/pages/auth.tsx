@@ -19,26 +19,25 @@ export default function AuthPage() {
     e.preventDefault();
     setIsLoading(true);
 
-    // Mock auth logic
     setTimeout(() => {
       if (isLogin) {
         if (email === "test@example.com" && password === "123") {
           toast({
-            title: "Welcome back!",
-            description: "Successfully logged into NestEgg.",
+            title: "ברוכים השבים!",
+            description: "התחברתם בהצלחה ל-NestEgg.",
           });
           setLocation("/dashboard");
         } else {
           toast({
             variant: "destructive",
-            title: "Login failed",
-            description: "Invalid email or password. Hint: test@example.com / 123",
+            title: "התחברות נכשלה",
+            description: "אימייל או סיסמה שגויים. רמז: test@example.com / 123",
           });
         }
       } else {
         toast({
-          title: "Account created!",
-          description: "Welcome to NestEgg. Let's set up your profile.",
+          title: "החשבון נוצר!",
+          description: "ברוכים הבאים ל-NestEgg. בואו נקים את הפרופיל שלכם.",
         });
         setLocation("/onboarding");
       }
@@ -50,8 +49,8 @@ export default function AuthPage() {
     setIsLoading(true);
     setTimeout(() => {
       toast({
-        title: "Google Login",
-        description: "Successfully authenticated with Google.",
+        title: "התחברות עם Google",
+        description: "התחברתם בהצלחה באמצעות Google.",
       });
       setLocation("/dashboard");
       setIsLoading(false);
@@ -59,8 +58,7 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 font-sans relative overflow-hidden">
-      {/* Decorative background elements */}
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 font-sans relative overflow-hidden" dir="rtl">
       <div className="absolute top-0 left-0 w-full h-full -z-10 opacity-30">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/20 blur-[120px] rounded-full" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-secondary/30 blur-[120px] rounded-full" />
@@ -74,46 +72,46 @@ export default function AuthPage() {
             </div>
           </Link>
           <h1 className="text-3xl font-heading font-bold tracking-tight">
-            {isLogin ? "Welcome back" : "Create your account"}
+            {isLogin ? "ברוכים השבים" : "יצירת חשבון חדש"}
           </h1>
           <p className="text-muted-foreground">
             {isLogin 
-              ? "Start managing your couple's home fund." 
-              : "Join NestEgg and reach your dream home goals."}
+              ? "התחילו לנהל את חיסכון הדירה המשותף שלכם." 
+              : "הצטרפו ל-NestEgg והגיעו ליעד הדירה שלכם."}
           </p>
         </div>
 
         <Card className="border-none shadow-2xl bg-card/80 backdrop-blur-sm">
-          <CardHeader className="space-y-1">
+          <CardHeader className="space-y-1 text-right">
             <CardTitle className="text-xl font-heading">
-              {isLogin ? "Login" : "Sign Up"}
+              {isLogin ? "התחברות" : "הרשמה"}
             </CardTitle>
             <CardDescription>
               {isLogin 
-                ? "Enter your credentials to access your account" 
-                : "Fill in your details to get started"}
+                ? "הזינו את הפרטים כדי להיכנס לחשבון" 
+                : "מלאו את הפרטים כדי להתחיל"}
             </CardDescription>
           </CardHeader>
           <form onSubmit={handleAuth}>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email" className="block text-right">אימייל</Label>
                 <Input 
                   id="email" 
                   type="email" 
                   placeholder="test@example.com" 
                   required 
-                  className="h-11"
+                  className="h-11 text-right"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="password">Password</Label>
+                  <Label htmlFor="password">סיסמה</Label>
                   {isLogin && (
                     <Button variant="link" className="px-0 h-auto text-xs text-primary font-medium">
-                      Forgot password?
+                      שכחת סיסמה?
                     </Button>
                   )}
                 </div>
@@ -122,13 +120,13 @@ export default function AuthPage() {
                   type="password" 
                   placeholder="••••••••" 
                   required 
-                  className="h-11"
+                  className="h-11 text-right"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
               </div>
               <Button type="submit" className="w-full h-11 rounded-full font-semibold" disabled={isLoading}>
-                {isLoading ? "Please wait..." : (isLogin ? "Login" : "Create Account")}
+                {isLoading ? "אנא המתינו..." : (isLogin ? "התחברות" : "יצירת חשבון")}
               </Button>
 
               <div className="relative py-4">
@@ -136,7 +134,7 @@ export default function AuthPage() {
                   <span className="w-full border-t" />
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
+                  <span className="bg-card px-2 text-muted-foreground">או המשך באמצעות</span>
                 </div>
               </div>
 
@@ -171,22 +169,22 @@ export default function AuthPage() {
           </form>
           <CardFooter className="flex justify-center border-t p-4">
             <p className="text-sm text-muted-foreground">
-              {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
+              {isLogin ? "אין לך חשבון?" : "כבר יש לך חשבון?"}{" "}
               <Button 
                 variant="link" 
                 className="p-0 h-auto font-bold text-primary" 
                 onClick={() => setIsLogin(!isLogin)}
               >
-                {isLogin ? "Sign up" : "Login"}
+                {isLogin ? "הרשמה" : "התחברות"}
               </Button>
             </p>
           </CardFooter>
         </Card>
         
         <p className="text-center text-xs text-muted-foreground px-8">
-          By clicking continue, you agree to our{" "}
-          <span className="underline cursor-pointer">Terms of Service</span> and{" "}
-          <span className="underline cursor-pointer">Privacy Policy</span>.
+          בלחיצה על המשך, אתם מסכימים ל
+          <span className="underline cursor-pointer px-1">תנאי השירות</span> ו
+          <span className="underline cursor-pointer px-1">מדיניות הפרטיות</span> שלנו.
         </p>
       </div>
     </div>

@@ -27,18 +27,18 @@ const defaultData = [
 
 const chartConfig = {
   amount: {
-    label: "Amount",
+    label: "סכום",
   },
   Needs: {
-    label: "Needs",
+    label: "צרכים",
     color: "hsl(var(--chart-2))",
   },
   Wants: {
-    label: "Wants",
+    label: "רצונות",
     color: "hsl(var(--chart-3))",
   },
   Savings: {
-    label: "Savings",
+    label: "חיסכון",
     color: "hsl(var(--chart-1))",
   },
 } satisfies ChartConfig
@@ -52,8 +52,8 @@ export function BudgetPieChart({ dataOverride }: { dataOverride?: any[] }) {
   return (
     <Card className="flex flex-col border-none shadow-none bg-transparent">
       <CardHeader className="items-center pb-0">
-        <CardTitle className="font-heading">Budget Allocation</CardTitle>
-        <CardDescription>Monthly Split</CardDescription>
+        <CardTitle className="font-heading">חלוקת תקציב</CardTitle>
+        <CardDescription>פירוט חודשי</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 pb-0">
         <ChartContainer
@@ -87,14 +87,14 @@ export function BudgetPieChart({ dataOverride }: { dataOverride?: any[] }) {
                           y={viewBox.cy}
                           className="fill-foreground text-3xl font-bold font-heading"
                         >
-                          {totalAmount.toLocaleString()}
+                          ₪{totalAmount.toLocaleString()}
                         </tspan>
                         <tspan
                           x={viewBox.cx}
                           y={(viewBox.cy || 0) + 24}
                           className="fill-muted-foreground"
                         >
-                          Total (NIS)
+                          סה"כ
                         </tspan>
                       </text>
                     )
@@ -105,9 +105,9 @@ export function BudgetPieChart({ dataOverride }: { dataOverride?: any[] }) {
           </PieChart>
         </ChartContainer>
       </CardContent>
-      <CardFooter className="flex-col gap-2 text-sm">
+      <CardFooter className="flex-col gap-2 text-sm text-center">
         <div className="flex items-center gap-2 font-medium leading-none">
-          You are on track this month <TrendingUp className="h-4 w-4 text-primary" />
+          אתם בדרך הנכונה החודש <TrendingUp className="h-4 w-4 text-primary" />
         </div>
       </CardFooter>
     </Card>

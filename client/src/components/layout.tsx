@@ -12,14 +12,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
 
   const navItems = [
-    { href: "/dashboard", label: "Overview", icon: Home },
-    { href: "/budget", label: "Budget", icon: PieChart },
-    { href: "/goals", label: "Goals", icon: Target },
-    { href: "/profile", label: "Profile", icon: User },
+    { href: "/dashboard", label: "סקירה כללית", icon: Home },
+    { href: "/budget", label: "תקציב", icon: PieChart },
+    { href: "/goals", label: "יעדים", icon: Target },
+    { href: "/profile", label: "פרופיל", icon: User },
   ];
 
   return (
-    <div className="min-h-screen bg-background flex flex-col font-sans">
+    <div className="min-h-screen bg-background flex flex-col font-sans" dir="rtl">
       {/* Mobile Header */}
       <header className="lg:hidden flex items-center justify-between p-4 border-b bg-card">
         <div className="flex items-center gap-2">
@@ -56,7 +56,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
       <div className="flex flex-1">
         {/* Desktop Sidebar */}
-        <aside className="hidden lg:flex w-64 flex-col border-r bg-card p-6 gap-8 sticky top-0 h-screen">
+        <aside className="hidden lg:flex w-64 flex-col border-l bg-card p-6 gap-8 sticky top-0 h-screen">
           <div className="flex items-center gap-2 px-2">
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-primary-foreground font-bold font-heading">
               N
@@ -81,8 +81,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </nav>
 
           <div className="p-4 bg-secondary/30 rounded-xl border border-secondary">
-            <h4 className="font-heading font-semibold text-sm mb-1 text-secondary-foreground">Quick Tip</h4>
-            <p className="text-xs text-muted-foreground">Try the 50/30/20 rule to maximize your savings this month.</p>
+            <h4 className="font-heading font-semibold text-sm mb-1 text-secondary-foreground">טיפ מהיר</h4>
+            <p className="text-xs text-muted-foreground">נסו את כלל ה-50/50 כדי למקסם את החיסכון שלכם החודש.</p>
           </div>
         </aside>
 
