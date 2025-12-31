@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 const CATEGORIES = {
   דיור: ["שכירות/משכנתא", "ביטוח מבנה", "ועד בית", "ארנונה", "חשמל", "מים", "גז", "אינטרנט", "תמי 4", "אחר"],
@@ -37,6 +38,8 @@ const CATEGORIES = {
 };
 
 export default function Dashboard() {
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
   const income = 24000;
   const goalAmount = 600000;
   const currentSavings = 145000;
@@ -46,13 +49,52 @@ export default function Dashboard() {
   
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("");
-  const [transactions] = useState([
+  const [transactions, setTransactions] = useState([
     { id: 1, title: "סופרמרקט", amount: -450, category: "צריכה", subcategory: "אוכל", date: "היום", notes: "קניות שבועיות בשופרסל" },
     { id: 2, title: "הפקדת משכורת", amount: 24000, category: "הכנסה", subcategory: "חודשי", date: "אתמול", notes: "" },
     { id: 3, title: "נטפליקס", amount: -60, category: "חשבונות קבועים", subcategory: "נטפליקס", date: "אתמול", notes: "מנוי פרימיום" },
     { id: 4, title: "חשבון חשמל", amount: -320, category: "דיור", subcategory: "חשמל", date: "לפני יומיים", notes: "שימוש גבוה במזגן" },
     { id: 5, title: "טיפוח לדייזי", amount: -150, category: "חיות", subcategory: "הוצאות דייזי", date: "לפני 3 ימים", notes: "תספורת חודשית לדייזי" },
   ]);
+
+  const [newTx, setNewTx] = useState({
+    title: "",
+    amount: "",
+    category: "",
+    subcategory: "",
+    notes: ""
+  });
+
+  const handleAddTransaction = () => {
+    if (!newTx.title || !newTx.amount || !newTx.category) {
+      toast({
+        variant: "destructive",
+        title: "שגיאה",
+        description: "אנא מלאו את כל שדות החובה"
+      });
+      return;
+    }
+
+    const transaction = {
+      id: transactions.length + 1,
+      title: newTx.title,
+      amount: -Math.abs(Number(newTx.amount)),
+      category: newTx.category,
+      subcategory: newTx.subcategory,
+      date: "היום",
+      notes: newTx.notes
+    };
+
+    setTransactions([transaction, ...transactions]);
+    setOpen(false);
+    setNewTx({ title: "", amount: "", category: "", subcategory: "", notes: "" });
+    setSelectedCategory("");
+    
+    toast({
+      title: "העסקה נוספה",
+      description: "העסקה תועדה בהצלחה במערכת"
+    });
+  };
 
   const filteredTransactions = transactions.filter(t => 
     t.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -79,7 +121,7 @@ export default function Dashboard() {
               {savingsRate < 50 && <AlertCircle className="w-4 h-4" />}
             </div>
             
-            <Dialog>
+            <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
                 <Button className="rounded-full shadow-lg shadow-primary/20 hover:shadow-primary/30">
                   <Plus className="ml-2 h-4 w-4" /> הוספת עסקה
@@ -87,25 +129,40 @@ export default function Dashboard() {
               </DialogTrigger>
               <DialogContent className="sm:max-w-[425px]" dir="rtl">
                 <DialogHeader>
-                  <DialogTitle className="font-heading">עסקה חדשה</DialogTitle>
+                  <DialogTitle className="font-heading text-right">עסקה חדשה</DialogTitle>
                 </DialogHeader>
-                <div className="space-y-4 pt-4">
+                <div className="space-y-4 pt-4 text-right">
                   <div className="space-y-2">
                     <Label>תיאור</Label>
-                    <Input placeholder="לדוגמה: קניות שבועיות" />
+                    <Input 
+                      placeholder="לדוגמה: קניות שבועיות" 
+                      value={newTx.title}
+                      onChange={(e) => setNewTx({...newTx, title: e.target.value})}
+                    />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>סכום (₪)</Label>
-                      <Input type="number" placeholder="0.00" />
+                      <Input 
+                        type="number" 
+                        placeholder="0.00" 
+                        value={newTx.amount}
+                        onChange={(e) => setNewTx({...newTx, amount: e.target.value})}
+                      />
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-2 text-right">
                       <Label>קטגוריה</Label>
-                      <Select onValueChange={setSelectedCategory}>
-                        <SelectTrigger>
+                      <Select 
+                        value={newTx.category}
+                        onValueChange={(val) => {
+                          setSelectedCategory(val);
+                          setNewTx({...newTx, category: val, subcategory: ""});
+                        }}
+                      >
+                        <SelectTrigger className="text-right">
                           <SelectValue placeholder="בחר קטגוריה" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent dir="rtl">
                           {Object.keys(CATEGORIES).map(cat => (
                             <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                           ))}
@@ -115,13 +172,16 @@ export default function Dashboard() {
                   </div>
 
                   {selectedCategory && (
-                    <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300 text-right">
                       <Label>תת-קטגוריה</Label>
-                      <Select>
-                        <SelectTrigger>
+                      <Select 
+                        value={newTx.subcategory}
+                        onValueChange={(val) => setNewTx({...newTx, subcategory: val})}
+                      >
+                        <SelectTrigger className="text-right">
                           <SelectValue placeholder="בחר תת-קטגוריה" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent dir="rtl">
                           {CATEGORIES[selectedCategory as keyof typeof CATEGORIES].map(sub => (
                             <SelectItem key={sub} value={sub}>{sub}</SelectItem>
                           ))}
@@ -132,9 +192,16 @@ export default function Dashboard() {
 
                   <div className="space-y-2">
                     <Label>הערות (ניתן לחיפוש)</Label>
-                    <Textarea placeholder="הוסיפו פרטים, תגיות או תזכורות..." className="resize-none h-20" />
+                    <Textarea 
+                      placeholder="הוסיפו פרטים, תגיות או תזכורות..." 
+                      className="resize-none h-20 text-right" 
+                      value={newTx.notes}
+                      onChange={(e) => setNewTx({...newTx, notes: e.target.value})}
+                    />
                   </div>
-                  <Button className="w-full mt-4 rounded-full h-12 text-lg">תיעוד עסקה</Button>
+                  <Button className="w-full mt-4 rounded-full h-12 text-lg" onClick={handleAddTransaction}>
+                    תיעוד עסקה
+                  </Button>
                 </div>
               </DialogContent>
             </Dialog>
@@ -188,7 +255,7 @@ export default function Dashboard() {
               <div className="relative w-64">
                 <Input 
                   placeholder="חפשו הערות או פריטים..." 
-                  className="rounded-full h-9 text-sm pr-10"
+                  className="rounded-full h-9 text-sm pr-10 text-right"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
@@ -206,7 +273,7 @@ export default function Dashboard() {
                       )}>
                         {t.amount > 0 ? <ArrowUpRight className="w-5 h-5" /> : <ArrowDownRight className="w-5 h-5" />}
                       </div>
-                      <div>
+                      <div className="text-right">
                         <p className="font-bold text-sm text-foreground">{t.title}</p>
                         <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
                           {t.category} {t.subcategory && `• ${t.subcategory}`} • {t.date}
@@ -235,7 +302,7 @@ export default function Dashboard() {
                 <p className="text-3xl font-bold text-emerald-600 font-heading tracking-tight">{(savingsRate).toFixed(0)}%</p>
                 <p className="text-xs font-semibold text-emerald-700/70 uppercase">שיעור חיסכון נוכחי</p>
               </div>
-              <div className="text-xs text-muted-foreground leading-relaxed">
+              <div className="text-xs text-muted-foreground leading-relaxed text-right">
                 <p className="font-semibold text-foreground mb-1">איך זה עובד:</p>
                 NestEgg אוכפת <span className="text-emerald-600 font-bold">כלל מינימום של 50% חיסכון</span>. כל הכנסה שנותרה לאחר הוצאות קבועות מופנית אוטומטית ליעד הדירה שלכם.
               </div>
