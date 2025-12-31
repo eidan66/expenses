@@ -18,26 +18,47 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
 
+const CATEGORIES = {
+  Housing: ["Rent", "Home Insurance", "HOA", "Property Tax", "Electricity", "Water", "Gas", "Internet", "Tami 4", "Other"],
+  Health: ["General Medicine", "Dental", "Other"],
+  Insurance: ["Health Insurance", "Life Insurance", "Other"],
+  Consumables: ["Food", "Toiletries/Hygiene"],
+  "Clothing & Footwear": ["Clothing & Footwear"],
+  "Regular Bills": ["Pay TV", "Netflix", "Disney+", "Surveillance Cameras", "Other"],
+  Communication: ["Mobile Phone"],
+  "Transportation (Car)": ["Insurance", "Registration", "Fuel", "Maintenance", "Parking", "Other"],
+  "Transportation (Motorcycle)": ["Insurance", "Registration", "Fuel", "Maintenance", "Parking", "Other"],
+  "Public Transportation": ["Bus/Train", "Taxi", "Other"],
+  Pets: ["Daisy Expenses", "Fish Expenses"],
+  "Online Shopping": ["Temu", "Shein", "AliExpress", "Other"],
+  "Digital Services": ["ChatGPT/GPT", "Cursor", "Online Apps", "Google Drive", "Other"],
+  Miscellaneous: ["Cash", "Other"],
+  Savings: ["Long-term Goal", "Emergency Fund"]
+};
+
 export default function Dashboard() {
   const income = 24000;
   const goalAmount = 600000;
   const currentSavings = 145000;
-  const monthlySavings = 13000; // > 50%
+  const monthlySavings = 13000; 
   const savingsRate = (monthlySavings / income) * 100;
   const progressPercentage = (currentSavings / goalAmount) * 100;
   
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [transactions] = useState([
-    { id: 1, title: "Supermarket", amount: -450, category: "Consumables", date: "Today", notes: "Weekly shopping at Shufersal" },
-    { id: 2, title: "Salary Deposit", amount: 24000, category: "Income", date: "Yesterday", notes: "" },
-    { id: 3, title: "Netflix", amount: -60, category: "Regular Bills", date: "Yesterday", notes: "Premium subscription" },
-    { id: 4, title: "Electric Bill", amount: -320, category: "Housing", date: "2 days ago", notes: "High usage due to AC" },
-    { id: 5, title: "Daisy Grooming", amount: -150, category: "Pets", date: "3 days ago", notes: "Monthly haircut for Daisy" },
+    { id: 1, title: "Supermarket", amount: -450, category: "Consumables", subcategory: "Food", date: "Today", notes: "Weekly shopping at Shufersal" },
+    { id: 2, title: "Salary Deposit", amount: 24000, category: "Income", subcategory: "Monthly", date: "Yesterday", notes: "" },
+    { id: 3, title: "Netflix", amount: -60, category: "Regular Bills", subcategory: "Netflix", date: "Yesterday", notes: "Premium subscription" },
+    { id: 4, title: "Electric Bill", amount: -320, category: "Housing", subcategory: "Electricity", date: "2 days ago", notes: "High usage due to AC" },
+    { id: 5, title: "Daisy Grooming", amount: -150, category: "Pets", subcategory: "Daisy Expenses", date: "3 days ago", notes: "Monthly haircut for Daisy" },
   ]);
 
   const filteredTransactions = transactions.filter(t => 
     t.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    t.notes.toLowerCase().includes(searchQuery.toLowerCase())
+    t.notes.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    t.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    t.subcategory?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -80,21 +101,35 @@ export default function Dashboard() {
                     </div>
                     <div className="space-y-2">
                       <Label>Category</Label>
-                      <Select>
+                      <Select onValueChange={setSelectedCategory}>
                         <SelectTrigger>
                           <SelectValue placeholder="Category" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="housing">Housing</SelectItem>
-                          <SelectItem value="consumables">Consumables</SelectItem>
-                          <SelectItem value="health">Health</SelectItem>
-                          <SelectItem value="transport">Transportation</SelectItem>
-                          <SelectItem value="pets">Pets</SelectItem>
-                          <SelectItem value="savings">Savings</SelectItem>
+                          {Object.keys(CATEGORIES).map(cat => (
+                            <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
+
+                  {selectedCategory && (
+                    <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                      <Label>Subcategory</Label>
+                      <Select>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select subcategory" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CATEGORIES[selectedCategory as keyof typeof CATEGORIES].map(sub => (
+                            <SelectItem key={sub} value={sub}>{sub}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
                   <div className="space-y-2">
                     <Label>Notes (Searchable)</Label>
                     <Textarea placeholder="Add details, tags, or reminders..." className="resize-none h-20" />
@@ -173,7 +208,9 @@ export default function Dashboard() {
                       </div>
                       <div>
                         <p className="font-bold text-sm text-foreground">{t.title}</p>
-                        <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">{t.category} • {t.date}</p>
+                        <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
+                          {t.category} {t.subcategory && `• ${t.subcategory}`} • {t.date}
+                        </p>
                         {t.notes && <p className="text-xs text-muted-foreground mt-1 line-clamp-1 italic">"{t.notes}"</p>}
                       </div>
                     </div>
