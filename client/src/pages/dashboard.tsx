@@ -238,7 +238,7 @@ export default function Dashboard() {
                   )}
 
                   <div className="space-y-2">
-                    <Label>הערות (ניתן לחיפוש)</Label>
+                    <Label>הערות (אופציונלי)</Label>
                     <Textarea 
                       placeholder="הוסיפו פרטים, תגיות או תזכורות..." 
                       className="resize-none h-20 text-right" 
