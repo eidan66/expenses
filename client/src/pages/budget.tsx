@@ -2,24 +2,52 @@ import Layout from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { Plus, Home, Wallet, AlertCircle, ShoppingBag, Shield, ShoppingCart, Car, Heart, Settings2 } from "lucide-react";
+import { Plus, Home, Wallet, AlertCircle, ShoppingBag, Shield, ShoppingCart, Car, Settings2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { BudgetPieChart } from "@/components/budget-chart";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function Budget() {
   const [income, setIncome] = useState(24000);
   const minSavingsRate = 0.5;
   const minSavingsAmount = income * minSavingsRate;
 
-  const categories = [
+  const [categories, setCategories] = useState([
     { name: "חיסכון", type: "Savings", budget: 12000, spent: 12000, icon: Wallet, color: "bg-emerald-500", items: ["יעד ארוך טווח", "קרן חירום"] },
     { name: "דיור", type: "Needs", budget: 6500, spent: 6500, icon: Home, color: "bg-blue-500", items: ["שכירות", "חשמל", "מים", "ארנונה", "תמי 4"] },
     { name: "בריאות וביטוח", type: "Needs", budget: 1200, spent: 1100, icon: Shield, color: "bg-blue-400", items: ["שיניים", "ביטוח חיים", "ביטוח בריאות"] },
     { name: "צריכה", type: "Needs", budget: 2500, spent: 2200, icon: ShoppingBag, color: "bg-blue-300", items: ["אוכל", "טואלטיקה"] },
     { name: "תחבורה", type: "Needs", budget: 1800, spent: 1950, icon: Car, color: "bg-blue-200", items: ["דלק", "טסט", "ביטוח"] },
     { name: "רצונות ודיגיטל", type: "Wants", budget: 1500, spent: 1600, icon: ShoppingCart, color: "bg-orange-400", items: ["קניות אונליין", "נטפליקס", "ChatGPT"] }
-  ];
+  ]);
+
+  const [newCatName, setNewCatName] = useState("");
+  const [newCatType, setNewCatType] = useState("Needs");
+  const [newCatBudget, setNewCatBudget] = useState("");
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  const handleAddCategory = () => {
+    if (!newCatName || !newCatBudget) return;
+    
+    const newCategory = {
+      name: newCatName,
+      type: newCatType,
+      budget: Number(newCatBudget),
+      spent: 0,
+      icon: newCatType === "Savings" ? Wallet : newCatType === "Needs" ? Home : ShoppingCart,
+      color: newCatType === "Savings" ? "bg-emerald-500" : newCatType === "Needs" ? "bg-blue-500" : "bg-orange-400",
+      items: []
+    };
+
+    setCategories([...categories, newCategory]);
+    setNewCatName("");
+    setNewCatBudget("");
+    setIsDialogOpen(false);
+  };
 
   const totalBudgetedSavings = categories.find(c => c.type === "Savings")?.budget || 0;
   const currentSavingsRate = (totalBudgetedSavings / income) * 100;
@@ -41,7 +69,44 @@ export default function Budget() {
                שיעור חיסכון: {currentSavingsRate.toFixed(0)}%
                {!isRateValid && <AlertCircle className="w-4 h-4" />}
              </div>
-             <Button className="rounded-full shadow-lg shadow-primary/20"><Plus className="w-4 h-4 mr-2" />קטגוריה חדשה</Button>
+             
+             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+               <DialogTrigger asChild>
+                 <Button className="rounded-full shadow-lg shadow-primary/20"><Plus className="w-4 h-4 ml-2" />קטגוריה חדשה</Button>
+               </DialogTrigger>
+               <DialogContent className="text-right" dir="rtl">
+                 <DialogHeader>
+                   <DialogTitle className="text-xl font-heading font-bold">הוספת קטגוריה חדשה</DialogTitle>
+                 </DialogHeader>
+                 <div className="space-y-4 py-4">
+                   <div className="space-y-2">
+                     <Label htmlFor="name">שם הקטגוריה</Label>
+                     <Input id="name" value={newCatName} onChange={(e) => setNewCatName(e.target.value)} placeholder="לדוגמה: בידור, השקעות..." className="text-right" />
+                   </div>
+                   <div className="space-y-2">
+                     <Label htmlFor="type">סוג תקציב</Label>
+                     <Select onValueChange={setNewCatType} defaultValue={newCatType}>
+                       <SelectTrigger id="type" className="text-right">
+                         <SelectValue placeholder="בחר סוג" />
+                       </SelectTrigger>
+                       <SelectContent>
+                         <SelectItem value="Savings">חיסכון (50%+)</SelectItem>
+                         <SelectItem value="Needs">הוצאה חיונית</SelectItem>
+                         <SelectItem value="Wants">הוצאה גמישה</SelectItem>
+                       </SelectContent>
+                     </Select>
+                   </div>
+                   <div className="space-y-2">
+                     <Label htmlFor="budget">תקציב חודשי (₪)</Label>
+                     <Input id="budget" type="number" value={newCatBudget} onChange={(e) => setNewCatBudget(e.target.value)} placeholder="0" className="text-right" />
+                   </div>
+                 </div>
+                 <DialogFooter className="gap-2 sm:gap-0">
+                   <Button variant="outline" onClick={() => setIsDialogOpen(false)} className="rounded-full">ביטול</Button>
+                   <Button onClick={handleAddCategory} className="rounded-full">הוספה</Button>
+                 </DialogFooter>
+               </DialogContent>
+             </Dialog>
           </div>
         </div>
 
