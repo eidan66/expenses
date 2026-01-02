@@ -30,6 +30,30 @@ export default function Budget() {
   const [newCatBudget, setNewCatBudget] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
+  // New states for the additional buttons
+  const [isIncomeDialogOpen, setIsIncomeDialogOpen] = useState(false);
+  const [tempIncome, setTempIncome] = useState(income.toString());
+
+  const [isSubCatDialogOpen, setIsSubCatDialogOpen] = useState(false);
+  const [selectedParentCat, setSelectedParentCat] = useState("");
+  const [newSubCatName, setNewSubCatName] = useState("");
+
+  const handleUpdateIncome = () => {
+    setIncome(Number(tempIncome));
+    setIsIncomeDialogOpen(false);
+  };
+
+  const handleAddSubCategory = () => {
+    if (!selectedParentCat || !newSubCatName) return;
+    setCategories(prev => prev.map(cat => 
+      cat.name === selectedParentCat 
+        ? { ...cat, items: [...cat.items, newSubCatName] }
+        : cat
+    ));
+    setNewSubCatName("");
+    setIsSubCatDialogOpen(false);
+  };
+
   const handleAddCategory = () => {
     if (!newCatName || !newCatBudget) return;
     
@@ -150,14 +174,79 @@ export default function Budget() {
 
           <div className="lg:col-span-2 space-y-4">
             <div className="grid grid-cols-2 gap-4 mb-4">
-              <div className="p-4 bg-muted/30 rounded-2xl border border-dashed border-muted-foreground/20 text-center cursor-pointer hover:bg-muted/50 transition-colors">
-                <Settings2 className="w-5 h-5 mx-auto mb-2 text-muted-foreground" />
-                <span className="text-xs font-medium text-muted-foreground">הגדרות תקציב חודשי</span>
-              </div>
-              <div className="p-4 bg-muted/30 rounded-2xl border border-dashed border-muted-foreground/20 text-center cursor-pointer hover:bg-muted/50 transition-colors">
-                <Plus className="w-5 h-5 mx-auto mb-2 text-muted-foreground" />
-                <span className="text-xs font-medium text-muted-foreground">הוספת תת-קטגוריה</span>
-              </div>
+              <Dialog open={isIncomeDialogOpen} onOpenChange={setIsIncomeDialogOpen}>
+                <DialogTrigger asChild>
+                  <div className="p-4 bg-muted/30 rounded-2xl border border-dashed border-muted-foreground/20 text-center cursor-pointer hover:bg-muted/50 transition-colors">
+                    <Settings2 className="w-5 h-5 mx-auto mb-2 text-muted-foreground" />
+                    <span className="text-xs font-medium text-muted-foreground">הגדרות תקציב חודשי</span>
+                  </div>
+                </DialogTrigger>
+                <DialogContent className="text-right" dir="rtl">
+                  <DialogHeader>
+                    <DialogTitle className="text-xl font-heading font-bold">הגדרות תקציב חודשי</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="income-edit">הכנסה חודשית נטו (₪)</Label>
+                      <Input 
+                        id="income-edit" 
+                        type="number" 
+                        value={tempIncome} 
+                        onChange={(e) => setTempIncome(e.target.value)} 
+                        className="text-right" 
+                      />
+                      <p className="text-[10px] text-muted-foreground">עדכון ההכנסה ישפיע על חישוב ה-50% חיסכון שלך.</p>
+                    </div>
+                  </div>
+                  <DialogFooter className="gap-2 sm:gap-0">
+                    <Button variant="outline" onClick={() => setIsIncomeDialogOpen(false)} className="rounded-full">ביטול</Button>
+                    <Button onClick={handleUpdateIncome} className="rounded-full">עדכון הכנסה</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              <Dialog open={isSubCatDialogOpen} onOpenChange={setIsSubCatDialogOpen}>
+                <DialogTrigger asChild>
+                  <div className="p-4 bg-muted/30 rounded-2xl border border-dashed border-muted-foreground/20 text-center cursor-pointer hover:bg-muted/50 transition-colors">
+                    <Plus className="w-5 h-5 mx-auto mb-2 text-muted-foreground" />
+                    <span className="text-xs font-medium text-muted-foreground">הוספת תת-קטגוריה</span>
+                  </div>
+                </DialogTrigger>
+                <DialogContent className="text-right" dir="rtl">
+                  <DialogHeader>
+                    <DialogTitle className="text-xl font-heading font-bold">הוספת תת-קטגוריה</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="parent-cat">בחר קטגוריית אם</Label>
+                      <Select onValueChange={setSelectedParentCat}>
+                        <SelectTrigger id="parent-cat" className="text-right">
+                          <SelectValue placeholder="בחר קטגוריה" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {categories.map(c => (
+                            <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="sub-name">שם תת-הקטגוריה</Label>
+                      <Input 
+                        id="sub-name" 
+                        value={newSubCatName} 
+                        onChange={(e) => setNewSubCatName(e.target.value)} 
+                        placeholder="לדוגמה: מנוי חד"כ, ביטוח רכב..." 
+                        className="text-right" 
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter className="gap-2 sm:gap-0">
+                    <Button variant="outline" onClick={() => setIsSubCatDialogOpen(false)} className="rounded-full">ביטול</Button>
+                    <Button onClick={handleAddSubCategory} className="rounded-full">הוספה</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </div>
 
             {categories.map((cat) => (
