@@ -236,7 +236,7 @@ export default function Budget() {
                         id="sub-name" 
                         value={newSubCatName} 
                         onChange={(e) => setNewSubCatName(e.target.value)} 
-                        placeholder="לדוגמה: מנוי חד"כ, ביטוח רכב..." 
+                        placeholder="לדוגמה: מנוי חדר כושר, ביטוח רכב..." 
                         className="text-right" 
                       />
                     </div>
