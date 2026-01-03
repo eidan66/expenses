@@ -4,9 +4,9 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
-    "dev": "cd client && vite dev --port 4321",
-    "build": "cd client && vite build",
-    "preview": "cd client && vite preview",
+    "dev": "vite dev --port 4321 --config client/vite.config.ts",
+    "build": "vite build --config client/vite.config.ts",
+    "preview": "vite preview --config client/vite.config.ts",
     "check": "tsc"
   },
   "dependencies": {
