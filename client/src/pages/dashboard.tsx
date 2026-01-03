@@ -23,7 +23,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { type Transaction, type InsertTransaction, type Goal, type InsertGoal } from "@shared/schema";
-import { apiRequest } from "@/lib/queryClient";
+import { getTransactions, createTransaction, getGoals, createGoal } from "@/lib/supabaseQueries";
 
 const CATEGORIES = {
   דיור: ["שכירות/משכנתא", "ביטוח מבנה", "ועד בית", "ארנונה", "חשמל", "מים", "גז", "אינטרנט", "תמי 4", "אחר"],
@@ -68,7 +68,8 @@ const currentMonthName = MONTHS[currentMonthIndex];
   
   // Create a default goal for now if not exists, or fetch goals
   const { data: goals = [] } = useQuery<Goal[]>({ 
-    queryKey: ["/api/goals"] 
+    queryKey: ['goals'],
+    queryFn: getGoals
   });
   
   // Use the first goal or null
@@ -77,7 +78,8 @@ const currentMonthName = MONTHS[currentMonthIndex];
   const currentSavingsTotal = mainGoal ? parseInt(mainGoal.currentAmount) : 0;
 
   const { data: transactions = [] } = useQuery<Transaction[]>({ 
-    queryKey: ["/api/transactions"] 
+    queryKey: ['transactions'],
+    queryFn: getTransactions
   });
 
   // Calculate financial metrics
@@ -145,18 +147,13 @@ const currentMonthName = MONTHS[currentMonthIndex];
   });
 
   const createTransactionMutation = useMutation({
-    mutationFn: async (tx: Omit<InsertTransaction, "userId" | "id">) => {
-      const res = await apiRequest("POST", "/api/transactions", tx);
-      return res.json();
-    },
+    mutationFn: createTransaction,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
-      // Also update goal if it's a saving?
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
       toast({
         title: "העסקה נוספה",
         description: "העסקה תועדה בהצלחה במערכת"
       });
-      setOpen(false);
       setOpen(false);
       setNewTx({ title: "", amount: "", category: "", subcategory: "", notes: "", month: currentMonthName, year: currentYearStr });
       setSelectedCategory("");
@@ -171,12 +168,9 @@ const currentMonthName = MONTHS[currentMonthIndex];
   });
 
   const createGoalMutation = useMutation({
-    mutationFn: async (goal: Omit<InsertGoal, "userId" | "id">) => {
-      const res = await apiRequest("POST", "/api/goals", goal);
-      return res.json();
-    },
+    mutationFn: createGoal,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
+      queryClient.invalidateQueries({ queryKey: ['goals'] });
       toast({
         title: "היעד נוצר בהצלחה",
         description: "היעד החדש שלכם נשמר במערכת"

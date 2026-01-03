@@ -5,56 +5,60 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function AuthPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { signIn, signUp, signInWithGoogle } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleAuth = (e: React.FormEvent) => {
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    setTimeout(() => {
+    try {
       if (isLogin) {
-        if (email === "test@example.com" && password === "123") {
-          toast({
-            title: "ברוכים השבים!",
-            description: "התחברתם בהצלחה ל-NestEgg.",
-          });
-          setLocation("/dashboard");
-        } else {
-          toast({
-            variant: "destructive",
-            title: "התחברות נכשלה",
-            description: "אימייל או סיסמה שגויים. רמז: test@example.com / 123",
-          });
-        }
+        await signIn(email, password);
+        toast({
+          title: "ברוכים השבים!",
+          description: "התחברתם בהצלחה ל-NestEgg.",
+        });
+        setLocation("/dashboard");
       } else {
+        await signUp(email, password);
         toast({
           title: "החשבון נוצר!",
-          description: "ברוכים הבאים ל-NestEgg. בואו נקים את הפרופיל שלכם.",
+          description: "נשלח אליכם מייל לאימות. אנא אמתו את החשבון.",
         });
-        setLocation("/onboarding");
       }
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: isLogin ? "התחברות נכשלה" : "הרשמה נכשלה",
+        description: error.message || "אירעה שגיאה, נסו שוב.",
+      });
+    } finally {
       setIsLoading(false);
-    }, 800);
+    }
   };
 
-  const handleGoogleAuth = () => {
+  const handleGoogleAuth = async () => {
     setIsLoading(true);
-    setTimeout(() => {
+    try {
+      await signInWithGoogle();
+    } catch (error: any) {
       toast({
-        title: "התחברות עם Google",
-        description: "התחברתם בהצלחה באמצעות Google.",
+        variant: "destructive",
+        title: "שגיאה",
+        description: error.message,
       });
-      setLocation("/dashboard");
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   return (

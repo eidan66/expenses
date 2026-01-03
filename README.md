@@ -1,247 +1,207 @@
-# 💰 Expenses Tracker - Financial Management App
+# NestEgg - Personal Finance & Savings Tracker 🏠💰
 
-A modern, full-stack expense tracking application built with React, Express, and PostgreSQL. Track your income, expenses, and savings goals with a beautiful Hebrew interface.
+A modern, Hebrew-language personal finance application for couples to track expenses, manage budgets, and save towards shared goals like buying a home.
 
-## ✨ Features
+## 🌟 Features
 
-- 📊 **Dashboard** - Comprehensive overview of your finances
-- 💸 **Transaction Management** - Track income and expenses by category
-- 🎯 **Savings Goals** - Set and monitor progress towards financial goals
-- 📈 **Analytics** - Visualize your spending patterns (coming soon)
-- 🔐 **Secure** - Built with security best practices
-- 🌐 **Hebrew Interface** - Fully localized for Hebrew speakers
+- **Real-time Expense Tracking**: Log income, expenses, and savings transfers
+- **Goal Setting**: Create and track progress towards financial goals
+- **Budget Management**: Categorized spending with visual charts
+- **Analytics Dashboard**: Comprehensive financial insights
+- **Secure Authentication**: Email/password and Google OAuth support
+- **Multi-user Support**: Each user has their own isolated data
+- **RTL Hebrew Interface**: Fully localized for Hebrew speakers
 
-### Recent Updates
+## 🏗️ Architecture
 
-#### Income vs Savings Separation ✅
-- **Income (הכנסה)**: Salary and revenue are now properly tracked separately
-- **Savings Transfers (חיסכון)**: Explicit transfers to your goals
-- **Net Savings**: Automatically calculated as Income - Expenses
-- **Goal Progress**: Only updates when you transfer money to savings category
+**Frontend-Only Stack:**
+- React 19 + TypeScript
+- Vite for fast development
+- TanStack Query for data fetching
+- shadcn/ui + Tailwind CSS for beautiful UI
+- Wouter for routing
 
-The system now clearly shows:
-- Monthly income
-- Monthly expenses  
-- Money available for savings
-- Actual amount transferred to your goal
+**Backend:**
+- Supabase (PostgreSQL + Auth + Real-time)
+- Row Level Security (RLS) for data isolation
+- Direct database access via Supabase client SDK
+
+**Deployment:**
+- Vercel (Frontend hosting + CDN)
+- Free tier friendly
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
 - Node.js 20+
-- PostgreSQL database (we recommend [Neon](https://neon.tech))
-- Yarn or npm
+- Yarn
+- Supabase account (free tier)
+- Vercel account (optional, for deployment)
 
-### Installation
+### 1. Clone the Repository
 
-1. **Clone the repository:**
-   ```bash
-   git clone <your-repo-url>
-   cd expenses
-   ```
-
-2. **Install dependencies:**
-   ```bash
-   yarn install
-   ```
-
-3. **Set up environment variables:**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your database URL
-   ```
-
-4. **Push database schema:**
-   ```bash
-   yarn db:push
-   ```
-
-5. **Start development server:**
-   ```bash
-   # In one terminal - start backend
-   yarn dev
-
-   # In another terminal - start frontend
-   yarn dev:client
-   ```
-
-6. **Open your browser:**
-   ```
-   http://localhost:4321
-   ```
-
-## 📦 Deployment
-
-This app supports multiple deployment options:
-
-### Docker (Recommended)
 ```bash
-# Quick start with Docker
-./deploy.sh
-
-# Or manually
-docker build -t expenses-app .
-docker run -p 5000:5000 --env-file .env expenses-app
+git clone https://github.com/eidan66/expenses.git
+cd expenses
 ```
 
-### Vercel
+### 2. Install Dependencies
+
 ```bash
-vercel --prod
+yarn install
 ```
 
-### Railway
+### 3. Set Up Supabase
+
+Follow the comprehensive guide in [`SUPABASE_SETUP.md`](SUPABASE_SETUP.md):
+
+1. Create a Supabase project
+2. Run the SQL migration (`supabase-rls-setup.sql`)
+3. Enable authentication
+4. Copy your credentials
+
+### 4. Configure Environment Variables
+
 ```bash
-railway up
+cd client
+cp .env.local.example .env.local
 ```
 
-For detailed deployment instructions, see [DEPLOYMENT.md](./DEPLOYMENT.md)
+Edit `client/.env.local` with your Supabase credentials:
 
-## 🛠️ Tech Stack
+```bash
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
+```
 
-### Frontend
-- **React 19** - UI library
-- **Vite** - Build tool
-- **TailwindCSS** - Styling
-- **shadcn/ui** - Component library
-- **React Query** - Data fetching
-- **Wouter** - Routing
-- **Recharts** - Data visualization
+### 5. Start Development Server
 
-### Backend
-- **Express** - Web framework
-- **PostgreSQL** - Database
-- **Drizzle ORM** - Type-safe database queries
-- **Zod** - Schema validation
-- **Express Session** - Session management
+```bash
+yarn dev
+```
 
-## 📊 How It Works
+Visit `http://localhost:4321`
 
-### Financial Tracking
+## 📚 Documentation
 
-1. **Income**: Add your salary or other income using the "הכנסה" category
-2. **Expenses**: Record all your spending across various categories
-3. **Savings**: Transfer money to your goal using the "חיסכון" category
+- **[Supabase Setup](SUPABASE_SETUP.md)** - Database and authentication configuration
+- **[Testing Guide](TESTING_GUIDE.md)** - Local testing and verification steps
+- **[Vercel Deployment](VERCEL_DEPLOYMENT.md)** - Production deployment guide
 
-### Goal Progress
+## 🎯 Usage
 
-The system tracks two important metrics:
-- **Net Savings**: Income - Expenses (money available to save)
-- **Goal Progress**: Only money explicitly transferred to "חיסכון" category
+### Sign Up / Sign In
 
-This prevents double-counting and gives you clear visibility into:
-- How much you've earned
-- How much you've spent
-- How much you could save
-- How much you've actually saved towards your goal
+1. Navigate to `/auth`
+2. Create an account or sign in with Google
+3. Verify your email (if email confirmation is enabled)
 
-## 🗂️ Project Structure
+### Create a Goal
+
+1. Go to the Dashboard
+2. Click **"הגדר יעד חדש"** (Set New Goal)
+3. Enter goal name and target amount
+4. Track progress as you add savings
+
+### Add Transactions
+
+1. Click **"+ הוסף עסקה"** (Add Transaction)
+2. Select transaction type:
+   - **הכנסה** (Income): Salary, bonuses
+   - **Category Name** (Expense): Bills, groceries, etc.
+   - **חיסכון** (Savings): Explicit savings transfers
+
+### View Analytics
+
+- Monthly income/expense breakdown
+- Savings rate tracking
+- Goal progress visualization
+- Category-wise spending analysis
+
+## 🔐 Security
+
+- Row Level Security (RLS) ensures users can only access their own data
+- Supabase Auth handles secure authentication
+- Environment variables keep credentials safe
+- HTTPS enforced on production (via Vercel)
+
+## 🏢 Deployment
+
+Deploy to Vercel in minutes:
+
+```bash
+vercel
+```
+
+See [`VERCEL_DEPLOYMENT.md`](VERCEL_DEPLOYMENT.md) for detailed instructions.
+
+## 🛠️ Development
+
+### Project Structure
 
 ```
 expenses/
-├── client/                 # Frontend React app
+├── client/               # Frontend React app
 │   ├── src/
-│   │   ├── components/    # UI components
-│   │   ├── pages/        # Page components
-│   │   ├── lib/          # Utilities
-│   │   └── hooks/        # Custom hooks
-│   └── index.html
-├── server/                # Backend Express app
-│   ├── index.ts          # Server entry point
-│   ├── routes.ts         # API routes
-│   ├── db.ts            # Database connection
-│   └── storage.ts        # Data access layer
-├── shared/               # Shared code
-│   └── schema.ts        # Database schema & types
-├── Dockerfile           # Docker configuration
-├── docker-compose.yml   # Docker Compose config
-├── vercel.json         # Vercel configuration
-└── deploy.sh           # Deployment helper script
+│   │   ├── components/  # Reusable UI components
+│   │   ├── contexts/    # React contexts (Auth)
+│   │   ├── lib/         # Utilities (Supabase client, queries)
+│   │   ├── pages/       # Route pages
+│   │   └── hooks/       # Custom React hooks
+│   └── public/          # Static assets
+├── shared/              # Shared TypeScript types
+├── supabase-rls-setup.sql  # Database security setup
+└── vercel.json          # Vercel configuration
 ```
 
-## 🔧 Scripts
+### Key Technologies
 
-```bash
-# Development
-yarn dev              # Start backend server
-yarn dev:client       # Start frontend dev server
+- **React Query**: Efficient server state management
+- **Supabase Client SDK**: Direct database access with RLS
+- **shadcn/ui**: High-quality UI components
+- **Recharts**: Beautiful data visualizations
+- **Framer Motion**: Smooth animations
 
-# Building
-yarn build           # Build for production
-yarn start           # Start production server
+### Scripts
 
-# Database
-yarn db:push         # Push schema to database
+- `yarn dev` - Start development server
+- `yarn build` - Build for production
+- `yarn preview` - Preview production build locally
+- `yarn check` - TypeScript type checking
 
-# Type Checking
-yarn check           # Run TypeScript type check
-```
+## 🌐 Browser Support
 
-## 🐛 Debugging
+- Chrome/Edge (latest)
+- Firefox (latest)
+- Safari (latest)
 
-### Common Issues
+## 📝 License
 
-**Database connection errors:**
-- Ensure your `DATABASE_URL` is correct
-- For Neon, make sure to include `?sslmode=require`
-
-**Port already in use:**
-```bash
-# Kill process on port 5000
-kill -9 $(lsof -t -i:5000)
-```
-
-**Build errors:**
-```bash
-# Clean and rebuild
-rm -rf node_modules dist
-yarn install
-yarn build
-```
-
-## 📝 Environment Variables
-
-```bash
-DATABASE_URL=postgresql://user:pass@host/db?sslmode=require
-NODE_ENV=development|production
-SESSION_SECRET=your-secret-key-here
-PORT=5000
-```
-
-## 🔒 Security
-
-- Passwords are hashed with bcrypt
-- Sessions use secure cookies
-- SQL injection protection via Drizzle ORM
-- Input validation with Zod schemas
-- HTTPS enforced in production
+MIT License - see LICENSE file for details
 
 ## 🤝 Contributing
+
+Contributions are welcome! Please follow these steps:
 
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Run tests and linting
+4. Test thoroughly (see `TESTING_GUIDE.md`)
 5. Submit a pull request
 
-## 📄 License
+## 💬 Support
 
-MIT License - feel free to use this project for your own purposes!
+For issues and questions:
+- Open a GitHub issue
+- Check documentation in `/docs` folder
 
-## 🙏 Acknowledgments
+## 🎉 Acknowledgments
 
-- Built with [shadcn/ui](https://ui.shadcn.com/)
-- Icons by [Lucide](https://lucide.dev/)
-- Database by [Neon](https://neon.tech/)
-
-## 📞 Support
-
-For issues or questions:
-1. Check the [DEPLOYMENT.md](./DEPLOYMENT.md) guide
-2. Review the code comments
-3. Open an issue on GitHub
+- Built with [Supabase](https://supabase.com)
+- UI components from [shadcn/ui](https://ui.shadcn.com)
+- Deployed on [Vercel](https://vercel.com)
 
 ---
 
-Made with ❤️ for managing personal finances in Hebrew
-
+**Made with ❤️ for couples saving for their dream home**

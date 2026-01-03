@@ -1,22 +1,13 @@
 {
   "buildCommand": "yarn build",
   "installCommand": "yarn install",
-  "outputDirectory": "dist/public",
+  "outputDirectory": "client/dist",
   "framework": null,
   "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "/api"
-    },
     {
       "source": "/(.*)",
       "destination": "/index.html"
     }
-  ],
-  "build": {
-    "env": {
-      "YARN_PRODUCTION": "false"
-    }
-  }
+  ]
 }
 
