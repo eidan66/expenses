@@ -1,7 +1,7 @@
 {
   "buildCommand": "yarn build",
-  "outputDirectory": "dist/public",
   "installCommand": "yarn install",
+  "outputDirectory": "dist/public",
   "framework": null,
   "rewrites": [
     {
@@ -12,6 +12,11 @@
       "source": "/(.*)",
       "destination": "/index.html"
     }
-  ]
+  ],
+  "build": {
+    "env": {
+      "YARN_PRODUCTION": "false"
+    }
+  }
 }
 
