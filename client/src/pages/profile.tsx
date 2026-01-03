@@ -21,7 +21,7 @@ export default function Profile() {
               </Button>
             </div>
             <div>
-              <h2 className="text-xl font-heading font-bold">שרה ותום</h2>
+              <h2 className="text-xl font-heading font-bold">עידן וספיר</h2>
               <p className="text-sm text-muted-foreground">הצטרפו בדצמבר 2025</p>
             </div>
           </CardContent>

@@ -39,15 +39,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <nav className="flex flex-col gap-4 mt-8">
               {navItems.map((item) => (
                 <Link key={item.href} href={item.href}>
-                  <a className={cn(
-                    "flex items-center gap-3 px-4 py-2 rounded-md transition-colors",
+                  <div className={cn(
+                    "flex items-center gap-3 px-4 py-2 rounded-md transition-colors cursor-pointer",
                     location === item.href 
                       ? "bg-primary/10 text-primary font-medium" 
                       : "text-muted-foreground hover:bg-muted"
                   )}>
                     <item.icon className="w-5 h-5" />
                     {item.label}
-                  </a>
+                  </div>
                 </Link>
               ))}
             </nav>
@@ -68,15 +68,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <nav className="flex flex-col gap-2 flex-1">
             {navItems.map((item) => (
               <Link key={item.href} href={item.href}>
-                <a className={cn(
-                  "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group text-right",
+                <div className={cn(
+                  "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group text-right cursor-pointer",
                   location === item.href 
                     ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" 
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 )}>
                   <item.icon className={cn("w-5 h-5", location === item.href ? "text-primary-foreground" : "text-muted-foreground group-hover:text-foreground")} />
                   <span className="font-medium">{item.label}</span>
-                </a>
+                </div>
               </Link>
             ))}
           </nav>

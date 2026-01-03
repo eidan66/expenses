@@ -11,19 +11,44 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
+import { useQuery } from "@tanstack/react-query";
+import { type Transaction } from "@shared/schema";
+
 export default function Budget() {
   const [income, setIncome] = useState(24000);
+  
+  const { data: transactions = [] } = useQuery<Transaction[]>({ 
+    queryKey: ["/api/transactions"] 
+  });
+
+  // Calculate spending per category from real transactions
+  const spendingByCategory = transactions.reduce((acc, t) => {
+    const amount = Math.abs(parseFloat(t.amount));
+    // Verify expense (negative) or income. Usually expenses are negative in Dashboard logic, or categorized by type.
+    // Dashboard logic: "amount: -450". So we look for negative amounts for spending.
+    if (parseFloat(t.amount) < 0) {
+      acc[t.category] = (acc[t.category] || 0) + amount;
+    }
+    return acc;
+  }, {} as Record<string, number>);
+
   const minSavingsRate = 0.5;
   const minSavingsAmount = income * minSavingsRate;
 
   const [categories, setCategories] = useState([
-    { name: "חיסכון", type: "Savings", budget: 12000, spent: 12000, icon: Wallet, color: "bg-emerald-500", items: ["יעד ארוך טווח", "קרן חירום"] },
-    { name: "דיור", type: "Needs", budget: 6500, spent: 6500, icon: Home, color: "bg-blue-500", items: ["שכירות", "חשמל", "מים", "ארנונה", "תמי 4"] },
-    { name: "בריאות וביטוח", type: "Needs", budget: 1200, spent: 1100, icon: Shield, color: "bg-blue-400", items: ["שיניים", "ביטוח חיים", "ביטוח בריאות"] },
-    { name: "צריכה", type: "Needs", budget: 2500, spent: 2200, icon: ShoppingBag, color: "bg-blue-300", items: ["אוכל", "טואלטיקה"] },
-    { name: "תחבורה", type: "Needs", budget: 1800, spent: 1950, icon: Car, color: "bg-blue-200", items: ["דלק", "טסט", "ביטוח"] },
-    { name: "רצונות ודיגיטל", type: "Wants", budget: 1500, spent: 1600, icon: ShoppingCart, color: "bg-orange-400", items: ["קניות אונליין", "נטפליקס", "ChatGPT"] }
+    { name: "חיסכון", type: "Savings", budget: 12000, spent: 0, icon: Wallet, color: "bg-emerald-500", items: ["יעד ארוך טווח", "קרן חירום"] },
+    { name: "דיור", type: "Needs", budget: 6500, spent: 0, icon: Home, color: "bg-blue-500", items: ["שכירות", "חשמל", "מים", "ארנונה", "תמי 4"] },
+    { name: "בריאות וביטוח", type: "Needs", budget: 1200, spent: 0, icon: Shield, color: "bg-blue-400", items: ["שיניים", "ביטוח חיים", "ביטוח בריאות"] },
+    { name: "צריכה", type: "Needs", budget: 2500, spent: 0, icon: ShoppingBag, color: "bg-blue-300", items: ["אוכל", "טואלטיקה"] },
+    { name: "תחבורה", type: "Needs", budget: 1800, spent: 0, icon: Car, color: "bg-blue-200", items: ["דלק", "טסט", "ביטוח"] },
+    { name: "רצונות ודיגיטל", type: "Wants", budget: 1500, spent: 0, icon: ShoppingCart, color: "bg-orange-400", items: ["קניות אונליין", "נטפליקס", "ChatGPT"] }
   ]);
+  
+  // Merge calculated spending into categories for display
+  const displayCategories = categories.map(cat => ({
+    ...cat,
+    spent: spendingByCategory[cat.name] || 0
+  }));
 
   const [newCatName, setNewCatName] = useState("");
   const [newCatType, setNewCatType] = useState("Needs");
@@ -73,7 +98,7 @@ export default function Budget() {
     setIsDialogOpen(false);
   };
 
-  const totalBudgetedSavings = categories.find(c => c.type === "Savings")?.budget || 0;
+  const totalBudgetedSavings = displayCategories.find(c => c.type === "Savings")?.budget || 0;
   const currentSavingsRate = (totalBudgetedSavings / income) * 100;
   const isRateValid = currentSavingsRate >= 50;
 
@@ -224,7 +249,7 @@ export default function Budget() {
                           <SelectValue placeholder="בחר קטגוריה" />
                         </SelectTrigger>
                         <SelectContent>
-                          {categories.map(c => (
+                          {displayCategories.map(c => (
                             <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>
                           ))}
                         </SelectContent>
@@ -249,7 +274,7 @@ export default function Budget() {
               </Dialog>
             </div>
 
-            {categories.map((cat) => (
+            {displayCategories.map((cat) => (
               <Card key={cat.name} className={cn(
                 "border-none shadow-sm overflow-hidden text-right group transition-all hover:shadow-md",
                 cat.type === "Savings" && "bg-emerald-50/20 ring-1 ring-emerald-500/20"

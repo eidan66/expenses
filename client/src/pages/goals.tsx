@@ -8,33 +8,54 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+import { useToast } from "@/hooks/use-toast";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { type Goal, type InsertGoal } from "@shared/schema";
+import { Loader2 } from "lucide-react";
 export default function Goals() {
-  const [goals, setGoals] = useState([
-    { title: "מקדמה לדירה", target: 600000, current: 145000, icon: Home, color: "text-emerald-500", bg: "bg-emerald-50" },
-    { title: "טיול לאירופה", target: 25000, current: 12000, icon: Plane, color: "text-blue-500", bg: "bg-blue-50" },
-    { title: "רכב חדש", target: 120000, current: 30000, icon: Car, color: "text-orange-500", bg: "bg-orange-50" },
-  ]);
-
+  const { toast } = useToast();
   const [newGoalTitle, setNewGoalTitle] = useState("");
   const [newGoalTarget, setNewGoalTarget] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
+  const { data: goals = [], isLoading } = useQuery<Goal[]>({ 
+    queryKey: ["/api/goals"] 
+  });
+
+  const createGoalMutation = useMutation({
+    mutationFn: async (goal: Omit<InsertGoal, "userId" | "id">) => {
+      const res = await apiRequest("POST", "/api/goals", goal);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
+      toast({ title: "היעד נוצר בהצלחה" });
+      setNewGoalTitle("");
+      setNewGoalTarget("");
+      setIsDialogOpen(false);
+    },
+    onError: () => {
+      toast({ variant: "destructive", title: "שגיאה ביצירת היעד" });
+    }
+  });
+
   const handleAddGoal = () => {
     if (!newGoalTitle || !newGoalTarget) return;
 
-    const newGoal = {
-      title: newGoalTitle,
-      target: Number(newGoalTarget),
-      current: 0,
-      icon: Target,
-      color: "text-primary",
-      bg: "bg-primary/10"
-    };
+    createGoalMutation.mutate({
+      name: newGoalTitle,
+      targetAmount: newGoalTarget,
+      currentAmount: "0" // Initial amount is 0
+    });
+  };
 
-    setGoals([...goals, newGoal]);
-    setNewGoalTitle("");
-    setNewGoalTarget("");
-    setIsDialogOpen(false);
+  // Helper to get icon/color based on title helper (simple usage)
+  const getGoalStyle = (title: string) => {
+    if (title.includes("דירה") || title.includes("בית")) return { icon: Home, color: "text-emerald-500", bg: "bg-emerald-50" };
+    if (title.includes("טיול") || title.includes("חופשה")) return { icon: Plane, color: "text-blue-500", bg: "bg-blue-50" };
+    if (title.includes("רכב") || title.includes("מכונית")) return { icon: Car, color: "text-orange-500", bg: "bg-orange-50" };
+    return { icon: Target, color: "text-primary", bg: "bg-primary/10" };
   };
 
   return (
@@ -46,9 +67,6 @@ export default function Goals() {
             <p className="text-muted-foreground">עקבו אחר ההתקדמות שלכם לעבר הדברים הגדולים.</p>
           </div>
           <div className="flex gap-3">
-            <Button variant="outline" className="rounded-full">
-              <Settings className="w-4 h-4 ml-2" /> הגדרות יעד דירה
-            </Button>
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button className="rounded-full">
@@ -71,44 +89,71 @@ export default function Goals() {
                 </div>
                 <DialogFooter className="gap-2 sm:gap-0">
                   <Button variant="outline" onClick={() => setIsDialogOpen(false)} className="rounded-full">ביטול</Button>
-                  <Button onClick={handleAddGoal} className="rounded-full">הוספה</Button>
+                  <Button onClick={handleAddGoal} className="rounded-full" disabled={createGoalMutation.isPending}>
+                    {createGoalMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "הוספה"}
+                  </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-right">
-          {goals.map((goal) => (
-            <Card key={goal.title} className="border-none shadow-sm group hover:shadow-md transition-all">
-              <CardContent className="p-6 space-y-6">
-                <div className="flex items-center gap-4">
-                  <div className={`p-4 rounded-2xl ${goal.bg}`}>
-                    <goal.icon className={`w-6 h-6 ${goal.color}`} />
-                  </div>
-                  <div>
-                    <h3 className="font-heading font-bold text-lg">{goal.title}</h3>
-                    <p className="text-sm text-muted-foreground">יעד: ₪{goal.target.toLocaleString()}</p>
-                  </div>
-                </div>
+        {isLoading ? (
+           <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground" /></div>
+        ) : goals.length === 0 ? (
+          <Card className="border-dashed border-2 shadow-sm bg-muted/30">
+            <CardContent className="flex flex-col items-center justify-center py-20 text-center space-y-4">
+              <div className="p-4 bg-background rounded-full shadow-sm">
+                <Target className="w-8 h-8 text-muted-foreground" />
+              </div>
+              <div>
+                <h3 className="font-heading font-semibold text-lg">אין יעדים עדיין</h3>
+                <p className="text-muted-foreground max-w-sm mt-1">
+                  זה הזמן להגדיר את החלום הבא שלכם ולהתחיל לחסוך אליו.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-right">
+            {goals.map((goal) => {
+              const { icon: Icon, color, bg } = getGoalStyle(goal.name);
+              const target = parseInt(goal.targetAmount);
+              const current = parseInt(goal.currentAmount);
+              const progress = target > 0 ? (current / target) * 100 : 0;
 
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm font-medium">
-                    <span>התקדמות</span>
-                    <span>{((goal.current / goal.target) * 100).toFixed(1)}%</span>
-                  </div>
-                  <Progress value={(goal.current / goal.target) * 100} />
-                  <div className="flex justify-between items-center mt-1">
-                     <p className="text-sm text-muted-foreground">
-                      ₪{goal.current.toLocaleString()} נחסכו
-                    </p>
-                    <Button variant="ghost" size="sm" className="h-7 text-[10px] rounded-full">עדכון ידני</Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+              return (
+                <Card key={goal.id} className="border-none shadow-sm group hover:shadow-md transition-all">
+                  <CardContent className="p-6 space-y-6">
+                    <div className="flex items-center gap-4">
+                      <div className={`p-4 rounded-2xl ${bg}`}>
+                        <Icon className={`w-6 h-6 ${color}`} />
+                      </div>
+                      <div>
+                        <h3 className="font-heading font-bold text-lg">{goal.name}</h3>
+                        <p className="text-sm text-muted-foreground">יעד: ₪{target.toLocaleString()}</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm font-medium">
+                        <span>התקדמות</span>
+                        <span>{progress.toFixed(1)}%</span>
+                      </div>
+                      <Progress value={progress} />
+                      <div className="flex justify-between items-center mt-1">
+                         <p className="text-sm text-muted-foreground">
+                          ₪{current.toLocaleString()} נחסכו
+                        </p>
+                        <Button variant="ghost" size="sm" className="h-7 text-[10px] rounded-full">עדכון ידני</Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
       </div>
     </Layout>
   );

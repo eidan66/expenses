@@ -5,34 +5,111 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   AreaChart, Area, Cell, PieChart, Pie
 } from "recharts";
-import { TrendingUp, Wallet, ArrowUpRight, Home } from "lucide-react";
+import { TrendingUp, Wallet, ArrowUpRight, Home, BarChart3 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { type Transaction } from "@shared/schema";
 
-const monthlyData = [
-  { name: "ינואר", income: 24000, expenses: 10000, savings: 14000 },
-  { name: "פברואר", income: 24000, expenses: 11000, savings: 13000 },
-  { name: "מרץ", income: 24000, expenses: 9500, savings: 14500 },
-  { name: "אפריל", income: 26000, expenses: 12000, savings: 14000 },
-  { name: "מאי", income: 24000, expenses: 10500, savings: 13500 },
-  { name: "יוני", income: 24000, expenses: 11000, savings: 13000 },
-];
-
-const categoryData = [
-  { name: "דיור", value: 6500, color: "hsl(var(--chart-2))" },
-  { name: "צריכה", value: 2500, color: "hsl(var(--chart-3))" },
-  { name: "תחבורה", value: 1800, color: "hsl(var(--chart-4))" },
-  { name: "בריאות", value: 1200, color: "hsl(var(--chart-5))" },
-];
-
-const cumulativeSavings = [
-  { name: "ינואר", total: 14000 },
-  { name: "פברואר", total: 27000 },
-  { name: "מרץ", total: 41500 },
-  { name: "אפריל", total: 55500 },
-  { name: "מאי", total: 69000 },
-  { name: "יוני", total: 82000 },
-];
 
 export default function Analytics() {
+  const { data: transactions = [] } = useQuery<Transaction[]>({ 
+    queryKey: ["/api/transactions"] 
+  });
+
+  // If no data, show empty state
+  if (transactions.length === 0) {
+    return (
+      <Layout>
+        <div className="space-y-6" dir="rtl">
+          <div>
+             <h1 className="text-3xl font-heading font-bold">אנליטיקה וביצועים</h1>
+             <p className="text-muted-foreground">ניתוח מעמיק של הרגלי הצריכה והחיסכון שלכם</p>
+          </div>
+          
+          <Card className="border-dashed border-2 shadow-sm bg-muted/30">
+            <CardContent className="flex flex-col items-center justify-center py-24 text-center space-y-4">
+              <div className="p-4 bg-background rounded-full shadow-sm">
+                <BarChart3 className="w-10 h-10 text-muted-foreground" />
+              </div>
+              <div>
+                <h3 className="font-heading font-semibold text-lg">אין מספיק נתונים לאנליטיקה</h3>
+                <p className="text-muted-foreground max-w-sm mt-1">
+                  ברגע שתתחילו להוסיף הכנסות והוצאות, נציג לכם כאן תובנות חכמות וגרפים.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </Layout>
+    );
+  }
+
+  // Process data for charts
+  const monthlyStats = new Map<string, { income: number, expenses: number, savings: number, monthIndex: number, year: number }>();
+  const categoryStats = new Map<string, number>();
+  let totalSavings = 0;
+  
+  const MONTHS = ["ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני", "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"];
+
+  transactions.forEach(t => {
+    const amount = parseFloat(t.amount);
+    const isIncome = amount > 0;
+    const absAmount = Math.abs(amount);
+    const monthIndex = MONTHS.indexOf(t.month);
+    
+    // Monthly Stats
+    const key = `${t.month} ${t.year}`;
+    if (!monthlyStats.has(key)) {
+      monthlyStats.set(key, { income: 0, expenses: 0, savings: 0, monthIndex, year: parseInt(t.year) });
+    }
+    const stat = monthlyStats.get(key)!;
+    if (isIncome) stat.income += absAmount;
+    else stat.expenses += absAmount;
+    stat.savings = stat.income - stat.expenses;
+
+    // Category Stats (Expenses only)
+    if (!isIncome) {
+      const current = categoryStats.get(t.category) || 0;
+      categoryStats.set(t.category, current + absAmount);
+    }
+    
+    totalSavings += amount; // Net positive/negative
+  });
+
+  // Convert to arrays and sort
+  const monthlyData = Array.from(monthlyStats.entries())
+    .map(([name, data]) => ({ name, ...data }))
+    .sort((a, b) => {
+      if (a.year !== b.year) return a.year - b.year;
+      return a.monthIndex - b.monthIndex;
+    });
+
+  const categoryData = Array.from(categoryStats.entries())
+    .map(([name, value], index) => ({
+      name, 
+      value, 
+      color: `hsl(var(--chart-${(index % 5) + 1}))`
+    }))
+    .sort((a, b) => b.value - a.value);
+
+  // Cumulative Savings (Simulated based on monthly for smoother graph)
+  let runningTotal = 0;
+  const cumulativeSavings = monthlyData.map(m => {
+    runningTotal += m.savings;
+    return { name: m.name, total: runningTotal };
+  });
+
+  const savingsRate = monthlyData.length > 0 
+    ? (monthlyData.reduce((acc, curr) => acc + (curr.income > 0 ? curr.savings / curr.income : 0), 0) / monthlyData.length) * 100
+    : 0;
+
+  const avgIncome = monthlyData.length > 0
+    ? monthlyData.reduce((acc, curr) => acc + curr.income, 0) / monthlyData.length
+    : 0;
+
+  const avgExpenses = monthlyData.length > 0
+    ? monthlyData.reduce((acc, curr) => acc + curr.expenses, 0) / monthlyData.length
+    : 0;
+
   return (
     <Layout>
       <div className="space-y-6" dir="rtl">
@@ -45,28 +122,28 @@ export default function Analytics() {
           <Card className="border-none shadow-sm bg-emerald-50/50">
             <CardContent className="p-6 text-right">
               <p className="text-sm font-medium text-emerald-600 mb-1">שיעור חיסכון ממוצע</p>
-              <h3 className="text-2xl font-bold">56%</h3>
+              <h3 className="text-2xl font-bold">{savingsRate.toFixed(1)}%</h3>
               <p className="text-xs text-emerald-600/70 mt-1 flex items-center justify-end">
-                <TrendingUp className="w-3 h-3 ml-1" /> 4% מעל החודש הקודם
+                <TrendingUp className="w-3 h-3 ml-1" /> מחושב על בסיס חודשי
               </p>
             </CardContent>
           </Card>
           <Card className="border-none shadow-sm bg-blue-50/50">
             <CardContent className="p-6 text-right">
               <p className="text-sm font-medium text-blue-600 mb-1">הכנסה חודשית ממוצעת</p>
-              <h3 className="text-2xl font-bold">₪24,333</h3>
+              <h3 className="text-2xl font-bold">₪{avgIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })}</h3>
             </CardContent>
           </Card>
           <Card className="border-none shadow-sm bg-orange-50/50">
             <CardContent className="p-6 text-right">
               <p className="text-sm font-medium text-orange-600 mb-1">הוצאה חודשית ממוצעת</p>
-              <h3 className="text-2xl font-bold">₪10,666</h3>
+              <h3 className="text-2xl font-bold">₪{avgExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}</h3>
             </CardContent>
           </Card>
           <Card className="border-none shadow-sm bg-primary/5">
             <CardContent className="p-6 text-right">
-              <p className="text-sm font-medium text-primary mb-1">זמן הגעה משוער ליעד</p>
-              <h3 className="text-2xl font-bold">22 חודשים</h3>
+              <p className="text-sm font-medium text-primary mb-1">חיסכון כולל מצטבר</p>
+              <h3 className="text-2xl font-bold">₪{runningTotal.toLocaleString()}</h3>
             </CardContent>
           </Card>
         </div>
@@ -116,7 +193,7 @@ export default function Analytics() {
           </Card>
 
           <Card className="border-none shadow-sm">
-            <CardHeader><CardTitle className="font-heading text-lg text-right">התפלגות הוצאות ממוצעת</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="font-heading text-lg text-right">התפלגות הוצאות</CardTitle></CardHeader>
             <CardContent className="h-[300px] flex items-center justify-center relative">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -137,28 +214,8 @@ export default function Analytics() {
                 </PieChart>
               </ResponsiveContainer>
               <div className="absolute flex flex-col items-center justify-center pointer-events-none">
-                <p className="text-2xl font-bold">₪12K</p>
-                <p className="text-[10px] text-muted-foreground uppercase font-bold">הוצאות</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-none shadow-sm">
-            <CardHeader><CardTitle className="font-heading text-lg text-right">תובנות חכמות</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 flex items-center gap-4 text-right">
-                <div className="p-2 bg-white rounded-xl shadow-sm"><ArrowUpRight className="w-5 h-5 text-emerald-600" /></div>
-                <div>
-                  <p className="text-sm font-bold text-emerald-700">קצב חיסכון מצוין</p>
-                  <p className="text-xs text-emerald-600/80">אתם חוסכים ב-12% יותר מהמינימום הנדרש. זה מקצר את הדרך לדירה ב-4 חודשים.</p>
-                </div>
-              </div>
-              <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100 flex items-center gap-4 text-right">
-                <div className="p-2 bg-white rounded-xl shadow-sm"><Wallet className="w-5 h-5 text-blue-600" /></div>
-                <div>
-                  <p className="text-sm font-bold text-blue-700">יציבות בהכנסות</p>
-                  <p className="text-xs text-blue-600/80">ההכנסות שלכם יציבות ב-5 החודשים האחרונים, מה שמאפשר תכנון ארוך טווח בטוח.</p>
-                </div>
+                <p className="text-2xl font-bold">₪{avgExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+                <p className="text-[10px] text-muted-foreground uppercase font-bold">ממוצע</p>
               </div>
             </CardContent>
           </Card>
