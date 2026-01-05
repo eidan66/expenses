@@ -7,6 +7,7 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { safeParseInt } from "@/lib/utils";
 
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -61,10 +62,10 @@ export default function Goals() {
   return (
     <Layout>
       <div className="space-y-8" dir="rtl">
-        <div className="flex justify-between items-end">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
           <div>
-            <h1 className="text-3xl font-heading font-bold">יעדים פיננסיים</h1>
-            <p className="text-muted-foreground">עקבו אחר ההתקדמות שלכם לעבר הדברים הגדולים.</p>
+            <h1 className="text-2xl sm:text-3xl font-heading font-bold whitespace-nowrap">יעדים פיננסיים</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">עקבו אחר ההתקדמות שלכם לעבר הדברים הגדולים.</p>
           </div>
           <div className="flex gap-3">
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -118,8 +119,8 @@ export default function Goals() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-right">
             {goals.map((goal) => {
               const { icon: Icon, color, bg } = getGoalStyle(goal.name);
-              const target = parseInt(goal.targetAmount);
-              const current = parseInt(goal.currentAmount);
+              const target = safeParseInt(goal.target_amount || goal.targetAmount);
+              const current = safeParseInt(goal.current_amount || goal.currentAmount);
               const progress = target > 0 ? (current / target) * 100 : 0;
 
               return (

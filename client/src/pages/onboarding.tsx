@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Users, User, Home, ArrowLeft, ArrowRight } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, safeParseInt } from "@/lib/utils";
 
 export default function Onboarding() {
   const [step, setStep] = useState(1);
@@ -123,7 +123,7 @@ export default function Onboarding() {
                               : "hover:bg-muted"
                           )}
                         >
-                          {(parseInt(amt)/1000)}k
+                          {(safeParseInt(amt)/1000)}k
                         </button>
                       ))}
                     </div>

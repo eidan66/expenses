@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Plus, Home, Wallet, AlertCircle, ShoppingBag, Shield, ShoppingCart, Car, Settings2, X } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, safeParseFloat, safeParseInt } from "@/lib/utils";
 import { useState } from "react";
 import { BudgetPieChart } from "@/components/budget-chart";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
@@ -13,21 +13,62 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 import { useQuery } from "@tanstack/react-query";
 import { type Transaction } from "@shared/schema";
+import { getTransactions } from "@/lib/supabaseQueries";
 
 export default function Budget() {
-  const [income, setIncome] = useState(24000);
-  
   const { data: transactions = [] } = useQuery<Transaction[]>({ 
-    queryKey: ["/api/transactions"] 
+    queryKey: ['transactions'],
+    queryFn: getTransactions
   });
+
+  // Calculate actual income from transactions (הכנסות עידן + הכנסות ספיר)
+  const calculateMonthlyIncome = () => {
+    const currentMonth = new Date().toLocaleString('he-IL', { month: 'long' });
+    const currentYear = new Date().getFullYear().toString();
+    
+    return transactions
+      .filter(t => t.month === currentMonth && t.year === currentYear && t.category === "הכנסה")
+      .reduce((sum, t) => {
+        // Check for specific salary subcategories
+        if (t.subcategory === "הכנסות עידן" || t.subcategory === "הכנסות ספיר") {
+          return sum + Math.abs(safeParseFloat(t.amount));
+        }
+        return sum;
+      }, 0);
+  };
+
+  const calculatedIncome = calculateMonthlyIncome();
+  const [manualIncome, setManualIncome] = useState<number | null>(null);
+  const income = manualIncome ?? calculatedIncome;
+  
+  // Map transaction categories to budget display categories
+  const mapTransactionToBudgetCategory = (txCategory: string): string => {
+    const mapping: Record<string, string> = {
+      "דיור": "דיור",
+      "בריאות": "בריאות וביטוח",
+      "ביטוחים": "בריאות וביטוח",
+      "צריכה": "צריכה",
+      "ביגוד והנעלה": "צריכה",
+      "תחבורה (רכב)": "תחבורה",
+      "תחבורה (אופנוע)": "תחבורה",
+      "תחבורה ציבורית": "תחבורה",
+      "קניות אונליין": "רצונות ודיגיטל",
+      "שירותים דיגיטליים": "רצונות ודיגיטל",
+      "חשבונות קבועים": "רצונות ודיגיטל",
+      "בילויים ופנאי": "רצונות ודיגיטל",
+      "חיות": "רצונות ודיגיטל",
+      "תקשורת": "רצונות ודיגיטל",
+      "חיסכון": "חיסכון",
+    };
+    return mapping[txCategory] || "שונות";
+  };
 
   // Calculate spending per category from real transactions
   const spendingByCategory = transactions.reduce((acc, t) => {
-    const amount = Math.abs(parseFloat(t.amount));
-    // Verify expense (negative) or income. Usually expenses are negative in Dashboard logic, or categorized by type.
-    // Dashboard logic: "amount: -450". So we look for negative amounts for spending.
-    if (parseFloat(t.amount) < 0) {
-      acc[t.category] = (acc[t.category] || 0) + amount;
+    const amount = Math.abs(safeParseFloat(t.amount));
+    if (safeParseFloat(t.amount) < 0) {
+      const budgetCategory = mapTransactionToBudgetCategory(t.category);
+      acc[budgetCategory] = (acc[budgetCategory] || 0) + amount;
     }
     return acc;
   }, {} as Record<string, number>);
@@ -57,14 +98,14 @@ export default function Budget() {
 
   // New states for the additional buttons
   const [isIncomeDialogOpen, setIsIncomeDialogOpen] = useState(false);
-  const [tempIncome, setTempIncome] = useState(income.toString());
+  const [tempIncome, setTempIncome] = useState("");
 
   const [isSubCatDialogOpen, setIsSubCatDialogOpen] = useState(false);
   const [selectedParentCat, setSelectedParentCat] = useState("");
   const [newSubCatName, setNewSubCatName] = useState("");
 
   const handleUpdateIncome = () => {
-    setIncome(Number(tempIncome));
+    setManualIncome(safeParseFloat(tempIncome));
     setIsIncomeDialogOpen(false);
   };
 
@@ -85,7 +126,7 @@ export default function Budget() {
     const newCategory = {
       name: newCatName,
       type: newCatType,
-      budget: Number(newCatBudget),
+      budget: safeParseFloat(newCatBudget),
       spent: 0,
       icon: newCatType === "Savings" ? Wallet : newCatType === "Needs" ? Home : ShoppingCart,
       color: newCatType === "Savings" ? "bg-emerald-500" : newCatType === "Needs" ? "bg-blue-500" : "bg-orange-400",
@@ -105,24 +146,25 @@ export default function Budget() {
   return (
     <Layout>
       <div className="space-y-6" dir="rtl">
-        <div className="flex justify-between items-end">
-          <div>
-            <h1 className="text-3xl font-heading font-bold">ניהול תקציב</h1>
-            <p className="text-muted-foreground">תכנון חודשי מול ביצוע בפועל</p>
-          </div>
-          <div className="flex gap-3">
-             <div className={cn(
-               "px-4 py-2 rounded-xl font-bold flex items-center gap-2 border",
-               isRateValid ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-destructive/10 text-destructive border-destructive/20"
-             )}>
-               שיעור חיסכון: {currentSavingsRate.toFixed(0)}%
-               {!isRateValid && <AlertCircle className="w-4 h-4" />}
-             </div>
-             
-             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-               <DialogTrigger asChild>
-                 <Button className="rounded-full shadow-lg shadow-primary/20"><Plus className="w-4 h-4 ml-2" />קטגוריה חדשה</Button>
-               </DialogTrigger>
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-heading font-bold whitespace-nowrap">ניהול תקציב</h1>
+              <p className="text-sm sm:text-base text-muted-foreground">תכנון חודשי מול ביצוע בפועל</p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+               <div className={cn(
+                 "px-4 py-2 rounded-xl font-bold flex items-center gap-2 border text-sm sm:text-base",
+                 isRateValid ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-destructive/10 text-destructive border-destructive/20"
+               )}>
+                 שיעור חיסכון: {currentSavingsRate.toFixed(0)}%
+                 {!isRateValid && <AlertCircle className="w-4 h-4" />}
+               </div>
+               
+               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                 <DialogTrigger asChild>
+                   <Button className="rounded-full shadow-lg shadow-primary/20"><Plus className="w-4 h-4 ml-2" />קטגוריה חדשה</Button>
+                 </DialogTrigger>
                <DialogContent className="text-right" dir="rtl">
                  <DialogHeader>
                    <DialogTitle className="text-xl font-heading font-bold">הוספת קטגוריה חדשה</DialogTitle>
@@ -156,6 +198,7 @@ export default function Budget() {
                  </DialogFooter>
                </DialogContent>
              </Dialog>
+            </div>
           </div>
         </div>
 
@@ -166,7 +209,7 @@ export default function Budget() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="flex flex-col lg:grid lg:grid-cols-3 gap-8">
           <div className="lg:col-span-1 space-y-6">
             <Card className="border-none shadow-sm">
               <CardContent className="pt-6">
@@ -198,7 +241,7 @@ export default function Budget() {
           </div>
 
           <div className="lg:col-span-2 space-y-4">
-            <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className="flex flex-col sm:grid sm:grid-cols-2 gap-4 mb-4">
               <Dialog open={isIncomeDialogOpen} onOpenChange={setIsIncomeDialogOpen}>
                 <DialogTrigger asChild>
                   <div className="p-4 bg-muted/30 rounded-2xl border border-dashed border-muted-foreground/20 text-center cursor-pointer hover:bg-muted/50 transition-colors">
@@ -211,16 +254,22 @@ export default function Budget() {
                     <DialogTitle className="text-xl font-heading font-bold">הגדרות תקציב חודשי</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4 py-4">
+                    <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+                      <p className="text-sm text-emerald-800 mb-1">הכנסה מחושבת אוטומטית</p>
+                      <p className="text-2xl font-bold text-emerald-900">₪{calculatedIncome.toLocaleString()}</p>
+                      <p className="text-xs text-emerald-700 mt-1">מבוסס על הכנסות עידן + ספיר החודש</p>
+                    </div>
                     <div className="space-y-2">
-                      <Label htmlFor="income-edit">הכנסה חודשית נטו (₪)</Label>
+                      <Label htmlFor="income-edit">עקוף הכנסה ידנית (אופציונלי)</Label>
                       <Input 
                         id="income-edit" 
                         type="number" 
+                        placeholder={calculatedIncome.toString()}
                         value={tempIncome} 
                         onChange={(e) => setTempIncome(e.target.value)} 
                         className="text-right" 
                       />
-                      <p className="text-[10px] text-muted-foreground">עדכון ההכנסה ישפיע על חישוב ה-50% חיסכון שלך.</p>
+                      <p className="text-[10px] text-muted-foreground">השאר ריק כדי להשתמש בחישוב האוטומטי. עדכון ההכנסה ישפיע על חישוב ה-50% חיסכון שלך.</p>
                     </div>
                   </div>
                   <DialogFooter className="gap-2 sm:gap-0">

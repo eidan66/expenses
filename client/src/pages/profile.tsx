@@ -8,7 +8,7 @@ export default function Profile() {
   return (
     <Layout>
       <div className="max-w-2xl mx-auto space-y-8 text-right" dir="rtl">
-        <h1 className="text-3xl font-heading font-bold">הגדרות חשבון</h1>
+        <h1 className="text-2xl sm:text-3xl font-heading font-bold whitespace-nowrap">הגדרות חשבון</h1>
 
         <Card className="border-none shadow-sm">
           <CardContent className="p-8 flex flex-col items-center text-center space-y-4">

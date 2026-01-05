@@ -8,6 +8,7 @@ import {
 import { TrendingUp, Wallet, ArrowUpRight, Home, BarChart3 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { type Transaction } from "@shared/schema";
+import { safeParseFloat, safeParseInt } from "@/lib/utils";
 
 
 export default function Analytics() {
@@ -51,7 +52,7 @@ export default function Analytics() {
   const MONTHS = ["ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני", "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"];
 
   transactions.forEach(t => {
-    const amount = parseFloat(t.amount);
+    const amount = safeParseFloat(t.amount);
     const isIncome = amount > 0;
     const absAmount = Math.abs(amount);
     const monthIndex = MONTHS.indexOf(t.month);
@@ -59,7 +60,7 @@ export default function Analytics() {
     // Monthly Stats
     const key = `${t.month} ${t.year}`;
     if (!monthlyStats.has(key)) {
-      monthlyStats.set(key, { income: 0, expenses: 0, savings: 0, monthIndex, year: parseInt(t.year) });
+      monthlyStats.set(key, { income: 0, expenses: 0, savings: 0, monthIndex, year: safeParseInt(t.year) });
     }
     const stat = monthlyStats.get(key)!;
     if (isIncome) stat.income += absAmount;
@@ -114,8 +115,8 @@ export default function Analytics() {
     <Layout>
       <div className="space-y-6" dir="rtl">
         <div>
-          <h1 className="text-3xl font-heading font-bold">אנליטיקה וביצועים</h1>
-          <p className="text-muted-foreground">ניתוח מעמיק של הרגלי הצריכה והחיסכון שלכם</p>
+          <h1 className="text-2xl sm:text-3xl font-heading font-bold whitespace-nowrap">אנליטיקה וביצועים</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">ניתוח מעמיק של הרגלי הצריכה והחיסכון שלכם</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

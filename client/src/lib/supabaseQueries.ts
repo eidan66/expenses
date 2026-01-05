@@ -50,6 +50,28 @@ export async function deleteTransaction(id: string) {
   if (error) throw error
 }
 
+export async function updateTransaction(id: string, updates: Partial<InsertTransaction>) {
+  const updateData: any = {}
+  if (updates.title !== undefined) updateData.title = updates.title
+  if (updates.amount !== undefined) updateData.amount = updates.amount
+  if (updates.category !== undefined) updateData.category = updates.category
+  if (updates.subcategory !== undefined) updateData.subcategory = updates.subcategory
+  if (updates.date !== undefined) updateData.date = updates.date
+  if (updates.month !== undefined) updateData.month = updates.month
+  if (updates.year !== undefined) updateData.year = updates.year
+  if (updates.notes !== undefined) updateData.notes = updates.notes
+
+  const { data, error } = await supabase
+    .from('transactions')
+    .update(updateData)
+    .eq('id', id)
+    .select()
+    .single()
+  
+  if (error) throw error
+  return data
+}
+
 // =============================================
 // Goals
 // =============================================

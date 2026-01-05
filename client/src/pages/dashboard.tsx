@@ -3,9 +3,9 @@ import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { Plus, ArrowUpRight, ArrowDownRight, TrendingUp, Home, Wallet, AlertCircle, FileText, Calendar } from "lucide-react";
+import { Plus, ArrowUpRight, ArrowDownRight, TrendingUp, Home, Wallet, AlertCircle, FileText, Calendar, Pencil, Trash2 } from "lucide-react";
 import { BudgetPieChart } from "@/components/budget-chart";
-import { cn } from "@/lib/utils";
+import { cn, safeParseFloat, safeParseInt } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -23,7 +23,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { type Transaction, type InsertTransaction, type Goal, type InsertGoal } from "@shared/schema";
-import { getTransactions, createTransaction, getGoals, createGoal } from "@/lib/supabaseQueries";
+import { getTransactions, createTransaction, getGoals, createGoal, updateTransaction, deleteTransaction, updateGoal, deleteGoal } from "@/lib/supabaseQueries";
 
 const CATEGORIES = {
   דיור: ["שכירות/משכנתא", "ביטוח מבנה", "ועד בית", "ארנונה", "חשמל", "מים", "גז", "אינטרנט", "תמי 4", "אחר"],
@@ -39,6 +39,7 @@ const CATEGORIES = {
   חיות: ["הוצאות דייזי", "הוצאות דגים"],
   "קניות אונליין": ["Temu", "Shein", "AliExpress", "אחר"],
   "שירותים דיגיטליים": ["ChatGPT/GPT", "Cursor", "אפליקציות", "Google Drive", "אחר"],
+  "בילויים ופנאי": [],
   שונות: ["מזומן", "אחר"],
   חיסכון: ["יעד ארוך טווח", "קרן חירום"],
   הכנסה: ["הכנסות עידן", "הכנסות ספיר", "הכנסות אחר"]
@@ -59,6 +60,10 @@ const currentMonthName = MONTHS[currentMonthIndex];
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [goalDialogOpen, setGoalDialogOpen] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [editTransactionDialogOpen, setEditTransactionDialogOpen] = useState(false);
+  const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
+  const [editGoalDialogOpen, setEditGoalDialogOpen] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(currentMonthName);
   const [selectedYear, setSelectedYear] = useState(currentYearStr);
   const [newGoal, setNewGoal] = useState({
@@ -74,8 +79,8 @@ const currentMonthName = MONTHS[currentMonthIndex];
   
   // Use the first goal or null
   const mainGoal = goals[0] || null;
-  const goalAmount = mainGoal ? parseInt(mainGoal.targetAmount) : 0;
-  const currentSavingsTotal = mainGoal ? parseInt(mainGoal.currentAmount) : 0;
+  const goalAmount = mainGoal ? safeParseInt(mainGoal.target_amount || mainGoal.targetAmount) : 0;
+  const currentSavingsTotal = mainGoal ? safeParseInt(mainGoal.current_amount || mainGoal.currentAmount) : 0;
 
   const { data: transactions = [] } = useQuery<Transaction[]>({ 
     queryKey: ['transactions'],
@@ -91,7 +96,7 @@ const currentMonthName = MONTHS[currentMonthIndex];
     transactions.forEach(t => {
       if (t.month !== selectedMonth || t.year !== selectedYear) return;
       
-      const amount = parseFloat(t.amount);
+      const amount = safeParseFloat(t.amount);
       
       if (t.category === "הכנסה") {
         // Income (salary, etc.) - positive amounts
@@ -123,7 +128,7 @@ const currentMonthName = MONTHS[currentMonthIndex];
     
     transactions.forEach(t => {
       if (t.category === "חיסכון") {
-        totalTransferredToGoal += Math.abs(parseFloat(t.amount));
+        totalTransferredToGoal += Math.abs(safeParseFloat(t.amount));
       }
     });
     
@@ -187,6 +192,72 @@ const currentMonthName = MONTHS[currentMonthIndex];
     }
   });
 
+  const updateTransactionMutation = useMutation({
+    mutationFn: ({ id, updates }: { id: string; updates: Partial<InsertTransaction> }) => 
+      updateTransaction(id, updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      toast({ title: "העסקה עודכנה", description: "השינויים נשמרו בהצלחה" });
+      setEditTransactionDialogOpen(false);
+      setEditingTransaction(null);
+    },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "שגיאה",
+        description: "אירעה שגיאה בעדכון העסקה"
+      });
+    }
+  });
+
+  const deleteTransactionMutation = useMutation({
+    mutationFn: deleteTransaction,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      toast({ title: "העסקה נמחקה", description: "העסקה הוסרה מהמערכת" });
+    },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "שגיאה",
+        description: "אירעה שגיאה במחיקת העסקה"
+      });
+    }
+  });
+
+  const updateGoalMutation = useMutation({
+    mutationFn: ({ id, updates }: { id: string; updates: Partial<InsertGoal> }) => 
+      updateGoal(id, updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['goals'] });
+      toast({ title: "היעד עודכן", description: "השינויים נשמרו בהצלחה" });
+      setEditGoalDialogOpen(false);
+      setEditingGoal(null);
+    },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "שגיאה",
+        description: "אירעה שגיאה בעדכון היעד"
+      });
+    }
+  });
+
+  const deleteGoalMutation = useMutation({
+    mutationFn: deleteGoal,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['goals'] });
+      toast({ title: "היעד נמחק", description: "היעד הוסר מהמערכת" });
+    },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "שגיאה",
+        description: "אירעה שגיאה במחיקת היעד"
+      });
+    }
+  });
+
   const handleAddTransaction = () => {
     if (!newTx.title || !newTx.amount || !newTx.category) {
       toast({
@@ -197,7 +268,7 @@ const currentMonthName = MONTHS[currentMonthIndex];
       return;
     }
 
-    const val = Number(newTx.amount);
+    const val = safeParseFloat(newTx.amount);
     const finalAmount = newTx.category === "הכנסה" ? Math.abs(val) : -Math.abs(val);
 
     createTransactionMutation.mutate({
@@ -242,11 +313,11 @@ const currentMonthName = MONTHS[currentMonthIndex];
   return (
     <Layout>
       <div className="space-y-8" dir="rtl">
-        <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <h1 className="text-3xl font-heading font-bold text-foreground">ברוכים השבים, עידן וספיר</h1>
-              <p className="text-muted-foreground">אתם שומרים על קצב חיסכון בריא של {(savingsRate).toFixed(0)}%.</p>
+              <h1 className="text-2xl sm:text-3xl font-heading font-bold text-foreground whitespace-nowrap">ברוכים השבים, עידן וספיר</h1>
+              <p className="text-sm sm:text-base text-muted-foreground">אתם שומרים על קצב חיסכון בריא של {(savingsRate).toFixed(0)}%.</p>
             </div>
             <div className="flex items-center gap-2 bg-muted/50 p-2 rounded-xl">
               <Calendar className="w-4 h-4 text-muted-foreground" />
@@ -404,6 +475,143 @@ const currentMonthName = MONTHS[currentMonthIndex];
                 </div>
               </DialogContent>
             </Dialog>
+
+            {/* Edit Transaction Dialog */}
+            <Dialog open={editTransactionDialogOpen} onOpenChange={setEditTransactionDialogOpen}>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" dir="rtl">
+                <DialogHeader>
+                  <DialogTitle className="text-2xl text-center">ערוך עסקה</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>כותרת</Label>
+                      <Input 
+                        placeholder="לדוגמה: קניות בסופר" 
+                        className="text-right"
+                        value={editingTransaction?.title || ""}
+                        onChange={(e) => setEditingTransaction(editingTransaction ? {...editingTransaction, title: e.target.value} : null)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>סכום (₪)</Label>
+                      <Input 
+                        type="number" 
+                        placeholder="0" 
+                        className="text-right ltr-input"
+                        value={editingTransaction?.amount || ""}
+                        onChange={(e) => setEditingTransaction(editingTransaction ? {...editingTransaction, amount: e.target.value} : null)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>קטגוריה</Label>
+                    <Select 
+                      value={editingTransaction?.category || ""}
+                      onValueChange={(val) => {
+                        setEditingTransaction(editingTransaction ? {...editingTransaction, category: val, subcategory: ""} : null);
+                      }}
+                    >
+                      <SelectTrigger className="text-right">
+                        <SelectValue placeholder="בחרו קטגוריה" />
+                      </SelectTrigger>
+                      <SelectContent dir="rtl">
+                        {Object.keys(CATEGORIES).map(cat => (
+                          <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {editingTransaction?.category && CATEGORIES[editingTransaction.category as keyof typeof CATEGORIES].length > 0 && (
+                    <div className="space-y-2">
+                      <Label>תת-קטגוריה</Label>
+                      <Select 
+                        value={editingTransaction?.subcategory || ""}
+                        onValueChange={(val) => setEditingTransaction(editingTransaction ? {...editingTransaction, subcategory: val} : null)}
+                      >
+                        <SelectTrigger className="text-right">
+                          <SelectValue placeholder="בחרו תת-קטגוריה" />
+                        </SelectTrigger>
+                        <SelectContent dir="rtl">
+                          {CATEGORIES[editingTransaction.category as keyof typeof CATEGORIES].map((sub: string) => (
+                            <SelectItem key={sub} value={sub}>{sub}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>חודש</Label>
+                      <Select 
+                        value={editingTransaction?.month || ""}
+                        onValueChange={(val) => setEditingTransaction(editingTransaction ? {...editingTransaction, month: val} : null)}
+                      >
+                        <SelectTrigger className="text-right">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent dir="rtl">
+                          {MONTHS.map(m => (
+                            <SelectItem key={m} value={m}>{m}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>שנה</Label>
+                      <Select 
+                        value={editingTransaction?.year || ""}
+                        onValueChange={(val) => setEditingTransaction(editingTransaction ? {...editingTransaction, year: val} : null)}
+                      >
+                        <SelectTrigger className="text-right">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent dir="rtl">
+                          {YEARS.map(y => (
+                            <SelectItem key={y} value={y}>{y}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>הערות (אופציונלי)</Label>
+                    <Textarea 
+                      placeholder="הוסיפו פרטים, תגיות או תזכורות..." 
+                      className="resize-none h-20 text-right" 
+                      value={editingTransaction?.notes || ""}
+                      onChange={(e) => setEditingTransaction(editingTransaction ? {...editingTransaction, notes: e.target.value} : null)}
+                    />
+                  </div>
+                  <Button 
+                    className="w-full mt-4 rounded-full h-12 text-lg" 
+                    onClick={() => {
+                      if (editingTransaction) {
+                        updateTransactionMutation.mutate({
+                          id: editingTransaction.id,
+                          updates: {
+                            title: editingTransaction.title,
+                            amount: editingTransaction.amount,
+                            category: editingTransaction.category,
+                            subcategory: editingTransaction.subcategory,
+                            date: editingTransaction.date,
+                            month: editingTransaction.month,
+                            year: editingTransaction.year,
+                            notes: editingTransaction.notes
+                          }
+                        });
+                      }
+                    }}
+                  >
+                    שמור שינויים
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
 
@@ -421,9 +629,36 @@ const currentMonthName = MONTHS[currentMonthIndex];
                     <p className="text-sm opacity-75">יעד סופי: ₪{goalAmount.toLocaleString()}</p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <span className="text-3xl font-bold font-heading">₪{totalSavingsTowardsGoal.toLocaleString()}</span>
-                  <p className="text-sm opacity-75">נחסך עד כה ({(progressPercentage).toFixed(1)}%)</p>
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <span className="text-3xl font-bold font-heading">₪{totalSavingsTowardsGoal.toLocaleString()}</span>
+                    <p className="text-sm opacity-75">נחסך עד כה ({(progressPercentage).toFixed(1)}%)</p>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      className="h-8 w-8 p-0 text-white hover:bg-white/20"
+                      onClick={() => { 
+                        setEditingGoal(mainGoal); 
+                        setEditGoalDialogOpen(true); 
+                      }}
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      className="h-8 w-8 p-0 text-white hover:bg-red-500/30"
+                      onClick={() => {
+                        if (confirm("האם אתה בטוח שברצונך למחוק יעד זה?")) {
+                          deleteGoalMutation.mutate(mainGoal.id);
+                        }
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
               </div>
               
@@ -497,11 +732,57 @@ const currentMonthName = MONTHS[currentMonthIndex];
                   </div>
                 </DialogContent>
               </Dialog>
+
+              {/* Edit Goal Dialog */}
+              <Dialog open={editGoalDialogOpen} onOpenChange={setEditGoalDialogOpen}>
+                <DialogContent dir="rtl">
+                  <DialogHeader>
+                    <DialogTitle className="text-2xl text-center">ערוך יעד</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label>שם היעד</Label>
+                      <Input 
+                        placeholder="לדוגמה: דירה ראשונה" 
+                        className="text-right"
+                        value={editingGoal?.name || ""}
+                        onChange={(e) => setEditingGoal(editingGoal ? {...editingGoal, name: e.target.value} : null)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>סכום יעד (₪)</Label>
+                      <Input 
+                        type="number" 
+                        placeholder="0" 
+                        className="text-right ltr-input"
+                        value={editingGoal?.targetAmount || ""}
+                        onChange={(e) => setEditingGoal(editingGoal ? {...editingGoal, targetAmount: e.target.value} : null)}
+                      />
+                    </div>
+                    <Button 
+                      className="w-full rounded-full h-12 text-lg" 
+                      onClick={() => {
+                        if (editingGoal && editingGoal.name && editingGoal.targetAmount) {
+                          updateGoalMutation.mutate({
+                            id: editingGoal.id,
+                            updates: {
+                              name: editingGoal.name,
+                              targetAmount: editingGoal.targetAmount
+                            }
+                          });
+                        }
+                      }}
+                    >
+                      שמור שינויים
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </CardContent>
           </Card>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="flex flex-col lg:grid lg:grid-cols-3 gap-6">
           <Card className="lg:col-span-2 border-none shadow-sm overflow-hidden">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="font-heading text-lg">פעילות - {selectedMonth}</CardTitle>
@@ -518,15 +799,15 @@ const currentMonthName = MONTHS[currentMonthIndex];
             <CardContent>
               <div className="space-y-1">
                 {filteredTransactions.length > 0 ? filteredTransactions.map((t) => (
-                  <div key={t.id} className="flex items-center justify-between p-3 hover:bg-muted/50 rounded-xl transition-all cursor-pointer group">
-                    <div className="flex items-center gap-4">
+                  <div key={t.id} className="flex items-center justify-between p-3 hover:bg-muted/50 rounded-xl transition-all group">
+                    <div className="flex items-center gap-4 flex-1">
                       <div className={cn(
                         "p-2.5 rounded-xl",
-                        parseFloat(t.amount) > 0 ? "bg-emerald-50 text-emerald-600" : "bg-muted text-muted-foreground group-hover:bg-white"
+                        safeParseFloat(t.amount) > 0 ? "bg-emerald-50 text-emerald-600" : "bg-muted text-muted-foreground group-hover:bg-white"
                       )}>
-                        {parseFloat(t.amount) > 0 ? <ArrowUpRight className="w-5 h-5" /> : <ArrowDownRight className="w-5 h-5" />}
+                        {safeParseFloat(t.amount) > 0 ? <ArrowUpRight className="w-5 h-5" /> : <ArrowDownRight className="w-5 h-5" />}
                       </div>
-                      <div className="text-right">
+                      <div className="text-right flex-1">
                         <p className="font-bold text-sm text-foreground">{t.title}</p>
                         <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
                           {t.category} {t.subcategory && `• ${t.subcategory}`} • {t.date}
@@ -534,12 +815,39 @@ const currentMonthName = MONTHS[currentMonthIndex];
                         {t.notes && <p className="text-xs text-muted-foreground mt-1 line-clamp-1 italic">"{t.notes}"</p>}
                       </div>
                     </div>
-                    <span className={cn(
-                      "font-bold font-heading",
-                      parseFloat(t.amount) > 0 ? "text-emerald-600" : "text-foreground"
-                    )}>
-                      {parseFloat(t.amount) > 0 ? "+" : ""}₪{Math.abs(parseFloat(t.amount)).toLocaleString()}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className={cn(
+                        "font-bold font-heading",
+                        safeParseFloat(t.amount) > 0 ? "text-emerald-600" : "text-foreground"
+                      )}>
+                        {safeParseFloat(t.amount) > 0 ? "+" : ""}₪{Math.abs(safeParseFloat(t.amount)).toLocaleString()}
+                      </span>
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          className="h-7 w-7 p-0"
+                          onClick={() => { 
+                            setEditingTransaction(t); 
+                            setEditTransactionDialogOpen(true); 
+                          }}
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                          onClick={() => {
+                            if (confirm("האם אתה בטוח שברצונך למחוק עסקה זו?")) {
+                              deleteTransactionMutation.mutate(t.id);
+                            }
+                          }}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 )) : (
                   <div className="text-center py-10 text-muted-foreground">

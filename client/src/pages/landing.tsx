@@ -15,7 +15,7 @@ export default function Landing() {
         </div>
         <div className="flex gap-4">
           <Link href="/login">
-            <Button variant="ghost" className="hidden sm:flex">התחברות</Button>
+            <Button variant="ghost">התחברות</Button>
           </Link>
           <Link href="/onboarding">
             <Button className="rounded-full px-6">מתחילים כאן</Button>
