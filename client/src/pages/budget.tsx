@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Plus, Home, Wallet, AlertCircle, ShoppingBag, Shield, ShoppingCart, Car, Settings2, X } from "lucide-react";
-import { cn, safeParseFloat, safeParseInt } from "@/lib/utils";
+import { cn, safeParseFloat, safeParseInt, formatNumberWithCommas, parseFormattedNumber } from "@/lib/utils";
 import { useState } from "react";
 import { BudgetPieChart } from "@/components/budget-chart";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
@@ -263,10 +263,14 @@ export default function Budget() {
                       <Label htmlFor="income-edit">עקוף הכנסה ידנית (אופציונלי)</Label>
                       <Input 
                         id="income-edit" 
-                        type="number" 
-                        placeholder={calculatedIncome.toString()}
-                        value={tempIncome} 
-                        onChange={(e) => setTempIncome(e.target.value)} 
+                        type="text" 
+                        inputMode="numeric"
+                        placeholder={calculatedIncome.toLocaleString()}
+                        value={formatNumberWithCommas(tempIncome)} 
+                        onChange={(e) => {
+                          const cleaned = parseFormattedNumber(e.target.value);
+                          setTempIncome(cleaned);
+                        }} 
                         className="text-right" 
                       />
                       <p className="text-[10px] text-muted-foreground">השאר ריק כדי להשתמש בחישוב האוטומטי. עדכון ההכנסה ישפיע על חישוב ה-50% חיסכון שלך.</p>

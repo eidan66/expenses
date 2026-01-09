@@ -9,11 +9,13 @@ import { TrendingUp, Wallet, ArrowUpRight, Home, BarChart3 } from "lucide-react"
 import { useQuery } from "@tanstack/react-query";
 import { type Transaction } from "@shared/schema";
 import { safeParseFloat, safeParseInt } from "@/lib/utils";
+import { getTransactions } from "@/lib/supabaseQueries";
 
 
 export default function Analytics() {
   const { data: transactions = [] } = useQuery<Transaction[]>({ 
-    queryKey: ["/api/transactions"] 
+    queryKey: ['transactions'],
+    queryFn: getTransactions
   });
 
   // If no data, show empty state
@@ -45,7 +47,7 @@ export default function Analytics() {
   }
 
   // Process data for charts
-  const monthlyStats = new Map<string, { income: number, expenses: number, savings: number, monthIndex: number, year: number }>();
+  const monthlyStats = new Map<string, { income: number, expenses: number, savings: number, savingsTransfers: number, monthIndex: number, year: number }>();
   const categoryStats = new Map<string, number>();
   let totalSavings = 0;
   
@@ -53,27 +55,40 @@ export default function Analytics() {
 
   transactions.forEach(t => {
     const amount = safeParseFloat(t.amount);
-    const isIncome = amount > 0;
+    const isIncome = amount > 0 && t.category === "הכנסה";
+    const isSavings = t.category === "חיסכון";
+    const isExpense = amount < 0 && !isSavings;
     const absAmount = Math.abs(amount);
     const monthIndex = MONTHS.indexOf(t.month);
     
     // Monthly Stats
     const key = `${t.month} ${t.year}`;
     if (!monthlyStats.has(key)) {
-      monthlyStats.set(key, { income: 0, expenses: 0, savings: 0, monthIndex, year: safeParseInt(t.year) });
+      monthlyStats.set(key, { income: 0, expenses: 0, savings: 0, savingsTransfers: 0, monthIndex, year: safeParseInt(t.year) });
     }
     const stat = monthlyStats.get(key)!;
-    if (isIncome) stat.income += absAmount;
-    else stat.expenses += absAmount;
+    if (isIncome) {
+      stat.income += absAmount;
+    } else if (isSavings) {
+      // Savings transfers - track separately, don't count as expenses
+      stat.savingsTransfers += absAmount;
+    } else if (isExpense) {
+      stat.expenses += absAmount;
+    }
+    
+    // Calculate net savings (income - expenses, savings transfers are separate)
     stat.savings = stat.income - stat.expenses;
 
-    // Category Stats (Expenses only)
-    if (!isIncome) {
+    // Category Stats (Expenses only, exclude savings)
+    if (isExpense) {
       const current = categoryStats.get(t.category) || 0;
       categoryStats.set(t.category, current + absAmount);
     }
     
-    totalSavings += amount; // Net positive/negative
+    // Total savings calculation (income - expenses)
+    if (isIncome) totalSavings += absAmount;
+    else if (isExpense) totalSavings -= absAmount;
+    // Note: savings transfers don't affect net savings calculation
   });
 
   // Convert to arrays and sort
@@ -111,6 +126,16 @@ export default function Analytics() {
     ? monthlyData.reduce((acc, curr) => acc + curr.expenses, 0) / monthlyData.length
     : 0;
 
+  // Format number with commas, max 2 decimals, and ₪ symbol
+  const formatCurrency = (value: number | string): string => {
+    const num = typeof value === 'string' ? parseFloat(value) : value;
+    if (isNaN(num)) return '₪0';
+    return `₪${num.toLocaleString('he-IL', { 
+      minimumFractionDigits: 0, 
+      maximumFractionDigits: 2 
+    })}`;
+  };
+
   return (
     <Layout>
       <div className="space-y-6" dir="rtl">
@@ -132,19 +157,19 @@ export default function Analytics() {
           <Card className="border-none shadow-sm bg-blue-50/50">
             <CardContent className="p-6 text-right">
               <p className="text-sm font-medium text-blue-600 mb-1">הכנסה חודשית ממוצעת</p>
-              <h3 className="text-2xl font-bold">₪{avgIncome.toLocaleString(undefined, { maximumFractionDigits: 0 })}</h3>
+              <h3 className="text-2xl font-bold">{formatCurrency(avgIncome)}</h3>
             </CardContent>
           </Card>
           <Card className="border-none shadow-sm bg-orange-50/50">
             <CardContent className="p-6 text-right">
               <p className="text-sm font-medium text-orange-600 mb-1">הוצאה חודשית ממוצעת</p>
-              <h3 className="text-2xl font-bold">₪{avgExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}</h3>
+              <h3 className="text-2xl font-bold">{formatCurrency(avgExpenses)}</h3>
             </CardContent>
           </Card>
           <Card className="border-none shadow-sm bg-primary/5">
             <CardContent className="p-6 text-right">
               <p className="text-sm font-medium text-primary mb-1">חיסכון כולל מצטבר</p>
-              <h3 className="text-2xl font-bold">₪{runningTotal.toLocaleString()}</h3>
+              <h3 className="text-2xl font-bold">{formatCurrency(runningTotal)}</h3>
             </CardContent>
           </Card>
         </div>
@@ -157,10 +182,16 @@ export default function Analytics() {
                 <BarChart data={monthlyData}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--muted))" />
                   <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                  <YAxis axisLine={false} tickLine={false} hide />
+                  <YAxis 
+                    axisLine={false} 
+                    tickLine={false} 
+                    hide 
+                    tickFormatter={(value) => formatCurrency(value)}
+                  />
                   <Tooltip 
                     contentStyle={{ borderRadius: "12px", border: "none", boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)" }}
                     cursor={{ fill: "hsl(var(--muted)/0.3)" }}
+                    formatter={(value: number) => formatCurrency(value)}
                   />
                   <Bar dataKey="income" name="הכנסה" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
                   <Bar dataKey="expenses" name="הוצאה" fill="hsl(var(--chart-3))" radius={[4, 4, 0, 0]} />
@@ -183,9 +214,15 @@ export default function Analytics() {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--muted))" />
                   <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                  <YAxis axisLine={false} tickLine={false} hide />
+                  <YAxis 
+                    axisLine={false} 
+                    tickLine={false} 
+                    hide 
+                    tickFormatter={(value) => formatCurrency(value)}
+                  />
                   <Tooltip 
                     contentStyle={{ borderRadius: "12px", border: "none", boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)" }}
+                    formatter={(value: number) => formatCurrency(value)}
                   />
                   <Area type="monotone" dataKey="total" name="חיסכון מצטבר" stroke="hsl(var(--primary))" strokeWidth={3} fillOpacity={1} fill="url(#colorTotal)" />
                 </AreaChart>
@@ -211,11 +248,11 @@ export default function Analytics() {
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip formatter={(value: number) => formatCurrency(value)} />
                 </PieChart>
               </ResponsiveContainer>
               <div className="absolute flex flex-col items-center justify-center pointer-events-none">
-                <p className="text-2xl font-bold">₪{avgExpenses.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+                <p className="text-2xl font-bold">{formatCurrency(avgExpenses)}</p>
                 <p className="text-[10px] text-muted-foreground uppercase font-bold">ממוצע</p>
               </div>
             </CardContent>
