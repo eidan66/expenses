@@ -3,9 +3,9 @@ import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { Plus, ArrowUpRight, ArrowDownRight, TrendingUp, Home, Wallet, AlertCircle, FileText, Calendar, Pencil, Trash2 } from "lucide-react";
+import { Plus, ArrowUpRight, ArrowDownRight, TrendingUp, Home, Wallet, AlertCircle, FileText, Calendar, Pencil, Trash2, PiggyBank } from "lucide-react";
 import { BudgetPieChart } from "@/components/budget-chart";
-import { cn, safeParseFloat, safeParseInt } from "@/lib/utils";
+import { cn, safeParseFloat, safeParseInt, formatNumberWithCommas, parseFormattedNumber } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -23,27 +23,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { type Transaction, type InsertTransaction, type Goal, type InsertGoal } from "@shared/schema";
-import { getTransactions, createTransaction, getGoals, createGoal, updateTransaction, deleteTransaction, updateGoal, deleteGoal } from "@/lib/supabaseQueries";
-
-const CATEGORIES = {
-  דיור: ["שכירות/משכנתא", "ביטוח מבנה", "ועד בית", "ארנונה", "חשמל", "מים", "גז", "אינטרנט", "תמי 4", "אחר"],
-  בריאות: ["רפואה כללית", "שיניים", "אחר"],
-  ביטוחים: ["ביטוח בריאות", "ביטוח חיים", "אחר"],
-  צריכה: ["אוכל", "טואלטיקה/היגיינה"],
-  "ביגוד והנעלה": ["ביגוד והנעלה"],
-  "חשבונות קבועים": ["טלוויזיה", "נטפליקס", "דיסני+", "מצלמות אבטחה", "אחר"],
-  תקשורת: ["טלפון נייד"],
-  "תחבורה (רכב)": ["ביטוח", "טסט", "דלק", "תחזוקה", "חניה", "אחר"],
-  "תחבורה (אופנוע)": ["ביטוח", "טסט", "דלק", "תחזוקה", "חניה", "אחר"],
-  "תחבורה ציבורית": ["אוטובוס/רכבת", "מונית", "אחר"],
-  חיות: ["הוצאות דייזי", "הוצאות דגים"],
-  "קניות אונליין": ["Temu", "Shein", "AliExpress", "אחר"],
-  "שירותים דיגיטליים": ["ChatGPT/GPT", "Cursor", "אפליקציות", "Google Drive", "אחר"],
-  "בילויים ופנאי": [],
-  שונות: ["מזומן", "אחר"],
-  חיסכון: ["יעד ארוך טווח", "קרן חירום"],
-  הכנסה: ["הכנסות עידן", "הכנסות ספיר", "הכנסות אחר"]
-};
+import { getTransactions, createTransaction, getGoals, createGoal, updateTransaction, deleteTransaction, updateGoal, deleteGoal, getCategories } from "@/lib/supabaseQueries";
 
 const MONTHS = [
   "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני", "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"
@@ -69,6 +49,12 @@ const currentMonthName = MONTHS[currentMonthIndex];
   const [newGoal, setNewGoal] = useState({
     name: "",
     targetAmount: ""
+  });
+  
+  // Fetch categories from database
+  const { data: categories = {} } = useQuery<Record<string, string[]>>({ 
+    queryKey: ['categories'],
+    queryFn: getCategories
   });
   
   // Create a default goal for now if not exists, or fetch goals
@@ -106,7 +92,7 @@ const currentMonthName = MONTHS[currentMonthIndex];
         // But we want to track them as positive contribution to goal
         totalSavingsTransfers += Math.abs(amount);
       } else if (amount < 0) {
-        // Regular expenses - negative amounts
+        // Regular expenses - negative amounts (excluding savings)
         totalExpenses += Math.abs(amount);
       }
     });
@@ -115,7 +101,7 @@ const currentMonthName = MONTHS[currentMonthIndex];
       income: totalIncome,
       expenses: totalExpenses,
       savingsTransfers: totalSavingsTransfers,
-      netSavings: totalIncome - totalExpenses, // Available to save (not yet transferred)
+      netSavings: totalIncome - totalExpenses - totalSavingsTransfers, // Available to save (income - expenses - already saved)
     };
   };
   
@@ -137,6 +123,28 @@ const currentMonthName = MONTHS[currentMonthIndex];
   
   const totalSavingsTowardsGoal = calculateGoalProgress();
   const progressPercentage = goalAmount > 0 ? (totalSavingsTowardsGoal / goalAmount) * 100 : 0;
+
+  // Helper function to update goal's current_amount based on all savings transactions
+  const updateGoalFromSavingsTransactions = async () => {
+    if (!mainGoal) return;
+    
+    try {
+      // Refetch transactions first to get the latest data
+      await queryClient.refetchQueries({ queryKey: ['transactions'] });
+      
+      // Get the updated transactions from the cache
+      const updatedTransactions = queryClient.getQueryData<Transaction[]>(['transactions']) || [];
+      
+      const totalSavings = updatedTransactions
+        .filter(t => t.category === "חיסכון")
+        .reduce((sum, t) => sum + Math.abs(safeParseFloat(t.amount)), 0);
+      
+      await updateGoal(mainGoal.id, { currentAmount: totalSavings.toString() });
+      queryClient.invalidateQueries({ queryKey: ['goals'] });
+    } catch (error) {
+      console.error("Failed to update goal from savings transactions:", error);
+    }
+  };
   
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("");
@@ -153,8 +161,15 @@ const currentMonthName = MONTHS[currentMonthIndex];
 
   const createTransactionMutation = useMutation({
     mutationFn: createTransaction,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+    onSuccess: async (data) => {
+      // Refetch transactions to ensure the UI updates with the new transaction
+      await queryClient.refetchQueries({ queryKey: ['transactions'] });
+      
+      // If this is a savings transaction, update the goal's current_amount
+      if (data.category === "חיסכון" && mainGoal) {
+        await updateGoalFromSavingsTransactions();
+      }
+      
       toast({
         title: "העסקה נוספה",
         description: "העסקה תועדה בהצלחה במערכת"
@@ -195,8 +210,18 @@ const currentMonthName = MONTHS[currentMonthIndex];
   const updateTransactionMutation = useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: Partial<InsertTransaction> }) => 
       updateTransaction(id, updates),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+    onSuccess: async (data) => {
+      // Refetch transactions to ensure the UI updates with the updated transaction
+      await queryClient.refetchQueries({ queryKey: ['transactions'] });
+      
+      // If this transaction is or was a savings transaction, update the goal
+      const wasSavings = editingTransaction?.category === "חיסכון";
+      const isSavings = data.category === "חיסכון";
+      
+      if ((wasSavings || isSavings) && mainGoal) {
+        await updateGoalFromSavingsTransactions();
+      }
+      
       toast({ title: "העסקה עודכנה", description: "השינויים נשמרו בהצלחה" });
       setEditTransactionDialogOpen(false);
       setEditingTransaction(null);
@@ -212,8 +237,19 @@ const currentMonthName = MONTHS[currentMonthIndex];
 
   const deleteTransactionMutation = useMutation({
     mutationFn: deleteTransaction,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+    onSuccess: async (_, deletedId) => {
+      // Check if the deleted transaction was a savings transaction BEFORE refetching
+      const deletedTransaction = transactions.find(t => t.id === deletedId);
+      const wasSavings = deletedTransaction?.category === "חיסכון";
+      
+      // Refetch transactions to ensure the UI updates without the deleted transaction
+      await queryClient.refetchQueries({ queryKey: ['transactions'] });
+      
+      // If it was a savings transaction, update the goal
+      if (wasSavings && mainGoal) {
+        await updateGoalFromSavingsTransactions();
+      }
+      
       toast({ title: "העסקה נמחקה", description: "העסקה הוסרה מהמערכת" });
     },
     onError: () => {
@@ -377,10 +413,15 @@ const currentMonthName = MONTHS[currentMonthIndex];
                     <div className="space-y-2">
                       <Label>סכום (₪)</Label>
                       <Input 
-                        type="number" 
-                        placeholder="0.00" 
-                        value={newTx.amount}
-                        onChange={(e) => setNewTx({...newTx, amount: e.target.value})}
+                        type="text" 
+                        inputMode="numeric"
+                        placeholder="0" 
+                        value={formatNumberWithCommas(newTx.amount)}
+                        onChange={(e) => {
+                          const cleaned = parseFormattedNumber(e.target.value);
+                          setNewTx({...newTx, amount: cleaned});
+                        }}
+                        className="text-right"
                       />
                     </div>
                     <div className="space-y-2 text-right">
@@ -396,7 +437,7 @@ const currentMonthName = MONTHS[currentMonthIndex];
                           <SelectValue placeholder="בחר קטגוריה" />
                         </SelectTrigger>
                         <SelectContent dir="rtl">
-                          {Object.keys(CATEGORIES).map(cat => (
+                          {Object.keys(categories).map(cat => (
                             <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                           ))}
                         </SelectContent>
@@ -416,7 +457,7 @@ const currentMonthName = MONTHS[currentMonthIndex];
                             <SelectValue placeholder="בחר" />
                           </SelectTrigger>
                           <SelectContent dir="rtl">
-                            {CATEGORIES[selectedCategory as keyof typeof CATEGORIES]?.map(sub => (
+                            {categories[selectedCategory]?.map(sub => (
                               <SelectItem key={sub} value={sub}>{sub}</SelectItem>
                             ))}
                           </SelectContent>
@@ -496,11 +537,16 @@ const currentMonthName = MONTHS[currentMonthIndex];
                     <div className="space-y-2">
                       <Label>סכום (₪)</Label>
                       <Input 
-                        type="number" 
+                        type="text" 
+                        inputMode="numeric"
                         placeholder="0" 
-                        className="text-right ltr-input"
-                        value={editingTransaction?.amount || ""}
-                        onChange={(e) => setEditingTransaction(editingTransaction ? {...editingTransaction, amount: e.target.value} : null)}
+                        className="text-right"
+                        value={editingTransaction ? formatNumberWithCommas(Math.abs(safeParseFloat(editingTransaction.amount)).toString()) : ""}
+                        onChange={(e) => {
+                          const cleaned = parseFormattedNumber(e.target.value);
+                          // Store as positive value, sign will be determined by category
+                          setEditingTransaction(editingTransaction ? {...editingTransaction, amount: cleaned} : null);
+                        }}
                       />
                     </div>
                   </div>
@@ -517,14 +563,14 @@ const currentMonthName = MONTHS[currentMonthIndex];
                         <SelectValue placeholder="בחרו קטגוריה" />
                       </SelectTrigger>
                       <SelectContent dir="rtl">
-                        {Object.keys(CATEGORIES).map(cat => (
+                        {Object.keys(categories).map(cat => (
                           <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
 
-                  {editingTransaction?.category && CATEGORIES[editingTransaction.category as keyof typeof CATEGORIES].length > 0 && (
+                  {editingTransaction?.category && categories[editingTransaction.category] && categories[editingTransaction.category].length > 0 && (
                     <div className="space-y-2">
                       <Label>תת-קטגוריה</Label>
                       <Select 
@@ -535,7 +581,7 @@ const currentMonthName = MONTHS[currentMonthIndex];
                           <SelectValue placeholder="בחרו תת-קטגוריה" />
                         </SelectTrigger>
                         <SelectContent dir="rtl">
-                          {CATEGORIES[editingTransaction.category as keyof typeof CATEGORIES].map((sub: string) => (
+                          {categories[editingTransaction.category].map((sub: string) => (
                             <SelectItem key={sub} value={sub}>{sub}</SelectItem>
                           ))}
                         </SelectContent>
@@ -591,11 +637,14 @@ const currentMonthName = MONTHS[currentMonthIndex];
                     className="w-full mt-4 rounded-full h-12 text-lg" 
                     onClick={() => {
                       if (editingTransaction) {
+                        const val = safeParseFloat(editingTransaction.amount);
+                        const finalAmount = editingTransaction.category === "הכנסה" ? Math.abs(val) : -Math.abs(val);
+                        
                         updateTransactionMutation.mutate({
                           id: editingTransaction.id,
                           updates: {
                             title: editingTransaction.title,
-                            amount: editingTransaction.amount,
+                            amount: finalAmount.toString(),
                             category: editingTransaction.category,
                             subcategory: editingTransaction.subcategory,
                             date: editingTransaction.date,
@@ -720,10 +769,15 @@ const currentMonthName = MONTHS[currentMonthIndex];
                     <div className="space-y-2">
                       <Label>סכום יעד (₪)</Label>
                       <Input 
-                        type="number" 
+                        type="text" 
+                        inputMode="numeric"
                         placeholder="0" 
-                        value={newGoal.targetAmount}
-                        onChange={(e) => setNewGoal({...newGoal, targetAmount: e.target.value})}
+                        className="text-right"
+                        value={formatNumberWithCommas(newGoal.targetAmount)}
+                        onChange={(e) => {
+                          const cleaned = parseFormattedNumber(e.target.value);
+                          setNewGoal({...newGoal, targetAmount: cleaned});
+                        }}
                       />
                     </div>
                     <Button className="w-full mt-4 rounded-full h-12 text-lg" onClick={handleAddGoal}>
@@ -752,11 +806,15 @@ const currentMonthName = MONTHS[currentMonthIndex];
                     <div className="space-y-2">
                       <Label>סכום יעד (₪)</Label>
                       <Input 
-                        type="number" 
+                        type="text" 
+                        inputMode="numeric"
                         placeholder="0" 
-                        className="text-right ltr-input"
-                        value={editingGoal?.targetAmount || ""}
-                        onChange={(e) => setEditingGoal(editingGoal ? {...editingGoal, targetAmount: e.target.value} : null)}
+                        className="text-right"
+                        value={formatNumberWithCommas(editingGoal?.targetAmount || "")}
+                        onChange={(e) => {
+                          const cleaned = parseFormattedNumber(e.target.value);
+                          setEditingGoal(editingGoal ? {...editingGoal, targetAmount: cleaned} : null);
+                        }}
                       />
                     </div>
                     <Button 
@@ -798,19 +856,24 @@ const currentMonthName = MONTHS[currentMonthIndex];
             </CardHeader>
             <CardContent>
               <div className="space-y-1">
-                {filteredTransactions.length > 0 ? filteredTransactions.map((t) => (
+                {filteredTransactions.length > 0 ? filteredTransactions.map((t) => {
+                  const isSavings = t.category === "חיסכון";
+                  const isIncome = safeParseFloat(t.amount) > 0 && !isSavings;
+                  const amount = Math.abs(safeParseFloat(t.amount));
+                  
+                  return (
                   <div key={t.id} className="flex items-center justify-between p-3 hover:bg-muted/50 rounded-xl transition-all group">
                     <div className="flex items-center gap-4 flex-1">
                       <div className={cn(
                         "p-2.5 rounded-xl",
-                        safeParseFloat(t.amount) > 0 ? "bg-emerald-50 text-emerald-600" : "bg-muted text-muted-foreground group-hover:bg-white"
+                        isSavings ? "bg-blue-50 text-blue-600" : isIncome ? "bg-emerald-50 text-emerald-600" : "bg-muted text-muted-foreground group-hover:bg-white"
                       )}>
-                        {safeParseFloat(t.amount) > 0 ? <ArrowUpRight className="w-5 h-5" /> : <ArrowDownRight className="w-5 h-5" />}
+                        {isSavings ? <PiggyBank className="w-5 h-5" /> : isIncome ? <ArrowUpRight className="w-5 h-5" /> : <ArrowDownRight className="w-5 h-5" />}
                       </div>
                       <div className="text-right flex-1">
-                        <p className="font-bold text-sm text-foreground">{t.title}</p>
+                        <p className="font-bold text-sm text-foreground">{isSavings ? "הפקדה" : t.title}</p>
                         <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
-                          {t.category} {t.subcategory && `• ${t.subcategory}`} • {t.date}
+                          {isSavings ? `חיסכון • ${t.subcategory || "יעד ארוך טווח"} • ${t.date}` : `${t.category} ${t.subcategory && `• ${t.subcategory}`} • ${t.date}`}
                         </p>
                         {t.notes && <p className="text-xs text-muted-foreground mt-1 line-clamp-1 italic">"{t.notes}"</p>}
                       </div>
@@ -818,9 +881,9 @@ const currentMonthName = MONTHS[currentMonthIndex];
                     <div className="flex items-center gap-2">
                       <span className={cn(
                         "font-bold font-heading",
-                        safeParseFloat(t.amount) > 0 ? "text-emerald-600" : "text-foreground"
+                        isSavings ? "text-blue-600" : isIncome ? "text-emerald-600" : "text-foreground"
                       )}>
-                        {safeParseFloat(t.amount) > 0 ? "+" : ""}₪{Math.abs(safeParseFloat(t.amount)).toLocaleString()}
+                        {isSavings ? "₪" : isIncome ? "+₪" : "₪"}{amount.toLocaleString()}
                       </span>
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Button 
@@ -849,7 +912,8 @@ const currentMonthName = MONTHS[currentMonthIndex];
                       </div>
                     </div>
                   </div>
-                )) : (
+                  );
+                }) : (
                   <div className="text-center py-10 text-muted-foreground">
                     אין פעילות בחודש זה
                   </div>

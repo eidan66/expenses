@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Users, User, Home, ArrowLeft, ArrowRight } from "lucide-react";
-import { cn, safeParseInt } from "@/lib/utils";
+import { cn, safeParseInt, formatNumberWithCommas, parseFormattedNumber } from "@/lib/utils";
 
 export default function Onboarding() {
   const [step, setStep] = useState(1);
@@ -103,10 +103,14 @@ export default function Onboarding() {
                       <div className="relative">
                         <Home className="absolute right-3 top-3 w-5 h-5 text-muted-foreground" />
                         <Input 
-                          type="number" 
+                          type="text" 
+                          inputMode="numeric"
                           className="pr-10 h-12 text-lg text-right" 
-                          value={formData.goalAmount}
-                          onChange={(e) => setFormData({...formData, goalAmount: e.target.value})}
+                          value={formatNumberWithCommas(formData.goalAmount)}
+                          onChange={(e) => {
+                            const cleaned = parseFormattedNumber(e.target.value);
+                            setFormData({...formData, goalAmount: cleaned});
+                          }}
                         />
                       </div>
                     </div>

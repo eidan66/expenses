@@ -132,3 +132,83 @@ export async function deleteGoal(id: string) {
   if (error) throw error
 }
 
+// =============================================
+// Categories and Subcategories
+// =============================================
+
+export interface Category {
+  id: string
+  name: string
+  type: 'Expense' | 'Income'
+  subcategories?: Subcategory[]
+}
+
+export interface Subcategory {
+  id: string
+  category_id: string
+  name: string
+}
+
+// Get all categories with their subcategories
+export async function getCategories(): Promise<Record<string, string[]>> {
+  // First, get all categories
+  const { data: categories, error: categoriesError } = await supabase
+    .from('categories')
+    .select('id, name')
+    .order('name')
+  
+  if (categoriesError) throw categoriesError
+  
+  // Then, get all subcategories
+  const { data: subcategories, error: subcategoriesError } = await supabase
+    .from('subcategories')
+    .select('id, category_id, name')
+    .order('name')
+  
+  if (subcategoriesError) throw subcategoriesError
+  
+  // Build the categories object in the format expected by the UI
+  const categoriesMap: Record<string, string[]> = {}
+  
+  categories?.forEach(cat => {
+    const subs = subcategories
+      ?.filter(sub => sub.category_id === cat.id)
+      .map(sub => sub.name) || []
+    categoriesMap[cat.name] = subs
+  })
+  
+  return categoriesMap
+}
+
+// Get categories only (without subcategories)
+export async function getCategoriesList(): Promise<Category[]> {
+  const { data, error } = await supabase
+    .from('categories')
+    .select('id, name, type')
+    .order('name')
+  
+  if (error) throw error
+  return data || []
+}
+
+// Get subcategories for a specific category
+export async function getSubcategories(categoryName: string): Promise<string[]> {
+  const { data: category, error: categoryError } = await supabase
+    .from('categories')
+    .select('id')
+    .eq('name', categoryName)
+    .single()
+  
+  if (categoryError) throw categoryError
+  if (!category) return []
+  
+  const { data: subcategories, error: subcategoriesError } = await supabase
+    .from('subcategories')
+    .select('name')
+    .eq('category_id', category.id)
+    .order('name')
+  
+  if (subcategoriesError) throw subcategoriesError
+  return subcategories?.map(s => s.name) || []
+}
+

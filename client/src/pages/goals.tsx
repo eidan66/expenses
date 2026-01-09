@@ -7,7 +7,7 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { safeParseInt } from "@/lib/utils";
+import { safeParseInt, formatNumberWithCommas, parseFormattedNumber } from "@/lib/utils";
 
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -85,7 +85,18 @@ export default function Goals() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="target">סכום יעד (₪)</Label>
-                    <Input id="target" type="number" value={newGoalTarget} onChange={(e) => setNewGoalTarget(e.target.value)} placeholder="0" className="text-right" />
+                    <Input 
+                      id="target" 
+                      type="text" 
+                      inputMode="numeric"
+                      value={formatNumberWithCommas(newGoalTarget)} 
+                      onChange={(e) => {
+                        const cleaned = parseFormattedNumber(e.target.value);
+                        setNewGoalTarget(cleaned);
+                      }} 
+                      placeholder="0" 
+                      className="text-right" 
+                    />
                   </div>
                 </div>
                 <DialogFooter className="gap-2 sm:gap-0">
