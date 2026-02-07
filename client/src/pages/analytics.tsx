@@ -114,9 +114,13 @@ export default function Analytics() {
     return { name: m.name, total: runningTotal };
   });
 
-  const savingsRate = monthlyData.length > 0 
-    ? (monthlyData.reduce((acc, curr) => acc + (curr.income > 0 ? curr.savings / curr.income : 0), 0) / monthlyData.length) * 100
+  const rawSavingsRate = monthlyData.length > 0
+    ? (monthlyData.reduce((acc, curr) => {
+        const rate = curr.income > 0 ? curr.savings / curr.income : 0;
+        return acc + (Number.isFinite(rate) ? rate : 0);
+      }, 0) / monthlyData.length) * 100
     : 0;
+  const savingsRate = Number.isFinite(rawSavingsRate) ? rawSavingsRate : 0;
 
   const avgIncome = monthlyData.length > 0
     ? monthlyData.reduce((acc, curr) => acc + curr.income, 0) / monthlyData.length
@@ -129,12 +133,14 @@ export default function Analytics() {
   // Format number with commas, max 2 decimals, and ₪ symbol
   const formatCurrency = (value: number | string): string => {
     const num = typeof value === 'string' ? parseFloat(value) : value;
-    if (isNaN(num)) return '₪0';
+    if (!Number.isFinite(num)) return '₪0';
     return `₪${num.toLocaleString('he-IL', { 
       minimumFractionDigits: 0, 
       maximumFractionDigits: 2 
     })}`;
   };
+
+  const displayCumulativeSavings = Number.isFinite(runningTotal) ? runningTotal : 0;
 
   return (
     <Layout>
@@ -148,7 +154,7 @@ export default function Analytics() {
           <Card className="border-none shadow-sm bg-emerald-50/50">
             <CardContent className="p-6 text-right">
               <p className="text-sm font-medium text-emerald-600 mb-1">שיעור חיסכון ממוצע</p>
-              <h3 className="text-2xl font-bold">{savingsRate.toFixed(1)}%</h3>
+              <h3 className="text-2xl font-bold">{(Number.isFinite(savingsRate) ? savingsRate : 0).toFixed(1)}%</h3>
               <p className="text-xs text-emerald-600/70 mt-1 flex items-center justify-end">
                 <TrendingUp className="w-3 h-3 ml-1" /> מחושב על בסיס חודשי
               </p>
@@ -169,7 +175,7 @@ export default function Analytics() {
           <Card className="border-none shadow-sm bg-primary/5">
             <CardContent className="p-6 text-right">
               <p className="text-sm font-medium text-primary mb-1">חיסכון כולל מצטבר</p>
-              <h3 className="text-2xl font-bold">{formatCurrency(runningTotal)}</h3>
+              <h3 className="text-2xl font-bold">{formatCurrency(displayCumulativeSavings)}</h3>
             </CardContent>
           </Card>
         </div>

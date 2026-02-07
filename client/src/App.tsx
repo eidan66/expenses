@@ -4,36 +4,27 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { QuickAuthProvider, useQuickAuth } from "@/contexts/QuickAuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import NotFound from "@/pages/not-found";
-import Landing from "@/pages/landing";
-import Onboarding from "@/pages/onboarding";
 import Dashboard from "@/pages/dashboard";
 import Budget from "@/pages/budget";
 import Goals from "@/pages/goals";
 import Profile from "@/pages/profile";
-import AuthPage from "@/pages/auth";
-import AuthCallback from "@/pages/auth-callback";
+import Categories from "@/pages/categories";
 import Analytics from "@/pages/analytics";
+import QuickLogin from "@/pages/QuickLogin";
+
+function HomePage() {
+  const { isAuthenticated } = useQuickAuth();
+  return isAuthenticated ? <Dashboard /> : <QuickLogin />;
+}
 
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={Landing} />
-      <Route path="/auth" component={AuthPage} />
-      <Route path="/auth/callback" component={AuthCallback} />
-      <Route path="/login" component={AuthPage} />
-      <Route path="/register" component={AuthPage} />
-      <Route path="/onboarding">
-        <ProtectedRoute>
-          <Onboarding />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/dashboard">
-        <ProtectedRoute>
-          <Dashboard />
-        </ProtectedRoute>
-      </Route>
+      <Route path="/" component={HomePage} />
+      <Route path="/dashboard" component={HomePage} />
       <Route path="/budget">
         <ProtectedRoute>
           <Budget />
@@ -54,6 +45,11 @@ function Router() {
           <Profile />
         </ProtectedRoute>
       </Route>
+      <Route path="/categories">
+        <ProtectedRoute>
+          <Categories />
+        </ProtectedRoute>
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );
@@ -63,10 +59,12 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Router />
-        </TooltipProvider>
+        <QuickAuthProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Router />
+          </TooltipProvider>
+        </QuickAuthProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

@@ -346,6 +346,24 @@ const currentMonthName = MONTHS[currentMonthIndex];
     return matchesSearch && matchesMonth && matchesYear;
   });
 
+  const isNewTxFormValid = Boolean(
+    newTx.title.trim() &&
+    newTx.amount &&
+    safeParseFloat(newTx.amount) > 0 &&
+    newTx.category &&
+    (!categories[newTx.category]?.length || newTx.subcategory)
+  );
+
+  const isEditTxFormValid = editingTransaction
+    ? Boolean(
+        editingTransaction.title?.trim() &&
+        editingTransaction.amount &&
+        Math.abs(safeParseFloat(editingTransaction.amount)) > 0 &&
+        editingTransaction.category &&
+        (!categories[editingTransaction.category]?.length || editingTransaction.subcategory)
+      )
+    : false;
+
   return (
     <Layout>
       <div className="space-y-8" dir="rtl">
@@ -353,7 +371,20 @@ const currentMonthName = MONTHS[currentMonthIndex];
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
               <h1 className="text-2xl sm:text-3xl font-heading font-bold text-foreground whitespace-nowrap">ברוכים השבים, עידן וספיר</h1>
-              <p className="text-sm sm:text-base text-muted-foreground">אתם שומרים על קצב חיסכון בריא של {(savingsRate).toFixed(0)}%.</p>
+              <p className={cn(
+                "text-sm sm:text-base",
+                financials.netSavings < 0
+                  ? "text-destructive/90"
+                  : savingsRate < 20
+                    ? "text-amber-600 dark:text-amber-500"
+                    : "text-muted-foreground"
+              )}>
+                {financials.netSavings < 0
+                  ? "ההוצאות עולות על ההכנסות החודש - אין אפשרות לחיסכון."
+                  : savingsRate < 20
+                    ? `שיעור החיסכון כרגע ${(savingsRate).toFixed(0)}% - נסו להגדיל את החיסכון החודשי.`
+                    : `אתם שומרים על קצב חיסכון בריא של ${(savingsRate).toFixed(0)}%.`}
+              </p>
             </div>
             <div className="flex items-center gap-2 bg-muted/50 p-2 rounded-xl">
               <Calendar className="w-4 h-4 text-muted-foreground" />
@@ -367,7 +398,7 @@ const currentMonthName = MONTHS[currentMonthIndex];
                   ))}
                 </SelectContent>
               </Select>
-              <div className="w-[1px] h-4 bg-muted-foreground/20" />
+              <div className="w-px h-4 bg-muted-foreground/20" />
               <Select value={selectedYear} onValueChange={setSelectedYear}>
                 <SelectTrigger className="w-20 border-none bg-transparent focus:ring-0">
                   <SelectValue />
@@ -402,7 +433,7 @@ const currentMonthName = MONTHS[currentMonthIndex];
                 </DialogHeader>
                 <div className="space-y-4 pt-4 text-right">
                   <div className="space-y-2">
-                    <Label>תיאור</Label>
+                    <Label>תיאור *</Label>
                     <Input 
                       placeholder="לדוגמה: קניות שבועיות" 
                       value={newTx.title}
@@ -411,7 +442,7 @@ const currentMonthName = MONTHS[currentMonthIndex];
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>סכום (₪)</Label>
+                      <Label>סכום (₪) *</Label>
                       <Input 
                         type="text" 
                         inputMode="numeric"
@@ -425,7 +456,7 @@ const currentMonthName = MONTHS[currentMonthIndex];
                       />
                     </div>
                     <div className="space-y-2 text-right">
-                      <Label>קטגוריה</Label>
+                      <Label>קטגוריה *</Label>
                       <Select 
                         value={newTx.category}
                         onValueChange={(val) => {
@@ -445,10 +476,10 @@ const currentMonthName = MONTHS[currentMonthIndex];
                     </div>
                   </div>
 
-                  {selectedCategory && (
+                  {selectedCategory && categories[selectedCategory]?.length > 0 && (
                     <div className="grid grid-cols-1 gap-4 animate-in fade-in slide-in-from-top-2 duration-300 text-right mb-4">
                       <div className="space-y-2">
-                        <Label>תת-קטגוריה</Label>
+                        <Label>תת-קטגוריה *</Label>
                         <Select 
                           value={newTx.subcategory}
                           onValueChange={(val) => setNewTx({...newTx, subcategory: val})}
@@ -510,7 +541,11 @@ const currentMonthName = MONTHS[currentMonthIndex];
                       onChange={(e) => setNewTx({...newTx, notes: e.target.value})}
                     />
                   </div>
-                  <Button className="w-full mt-4 rounded-full h-12 text-lg" onClick={handleAddTransaction}>
+                  <Button
+                    className="w-full mt-4 rounded-full h-12 text-lg"
+                    onClick={handleAddTransaction}
+                    disabled={!isNewTxFormValid}
+                  >
                     תיעוד עסקה
                   </Button>
                 </div>
@@ -526,7 +561,7 @@ const currentMonthName = MONTHS[currentMonthIndex];
                 <div className="space-y-4 py-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>כותרת</Label>
+                      <Label>כותרת *</Label>
                       <Input 
                         placeholder="לדוגמה: קניות בסופר" 
                         className="text-right"
@@ -535,7 +570,7 @@ const currentMonthName = MONTHS[currentMonthIndex];
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>סכום (₪)</Label>
+                      <Label>סכום (₪) *</Label>
                       <Input 
                         type="text" 
                         inputMode="numeric"
@@ -552,7 +587,7 @@ const currentMonthName = MONTHS[currentMonthIndex];
                   </div>
 
                   <div className="space-y-2">
-                    <Label>קטגוריה</Label>
+                    <Label>קטגוריה *</Label>
                     <Select 
                       value={editingTransaction?.category || ""}
                       onValueChange={(val) => {
@@ -572,7 +607,7 @@ const currentMonthName = MONTHS[currentMonthIndex];
 
                   {editingTransaction?.category && categories[editingTransaction.category] && categories[editingTransaction.category].length > 0 && (
                     <div className="space-y-2">
-                      <Label>תת-קטגוריה</Label>
+                      <Label>תת-קטגוריה *</Label>
                       <Select 
                         value={editingTransaction?.subcategory || ""}
                         onValueChange={(val) => setEditingTransaction(editingTransaction ? {...editingTransaction, subcategory: val} : null)}
@@ -634,7 +669,8 @@ const currentMonthName = MONTHS[currentMonthIndex];
                     />
                   </div>
                   <Button 
-                    className="w-full mt-4 rounded-full h-12 text-lg" 
+                    className="w-full mt-4 rounded-full h-12 text-lg"
+                    disabled={!isEditTxFormValid}
                     onClick={() => {
                       if (editingTransaction) {
                         const val = safeParseFloat(editingTransaction.amount);
@@ -665,7 +701,7 @@ const currentMonthName = MONTHS[currentMonthIndex];
         </div>
 
         {mainGoal ? (
-          <Card className="border-none shadow-xl bg-gradient-to-br from-primary/90 to-primary/80 text-primary-foreground overflow-hidden relative">
+          <Card className="border-none shadow-xl bg-linear-to-br from-primary/90 to-primary/80 text-primary-foreground overflow-hidden relative">
             <div className="absolute top-0 right-0 p-32 bg-white/10 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2" />
             <CardContent className="p-8 relative z-10">
               <div className="flex justify-between items-center mb-6">
@@ -726,7 +762,11 @@ const currentMonthName = MONTHS[currentMonthIndex];
                 </div>
                 <div className="bg-white/10 rounded-lg p-3 backdrop-blur-sm flex-1 min-w-[120px]">
                   <p className="text-xs opacity-75">נותר לחיסכון</p>
-                  <p className="font-bold text-lg">₪{financials.netSavings.toLocaleString()}</p>
+                  {financials.netSavings < 0 ? (
+                    <p className="font-bold text-sm text-red-200">אין אפשרות לחיסכון - ההוצאות עולות על ההכנסות</p>
+                  ) : (
+                    <p className="font-bold text-lg">₪{financials.netSavings.toLocaleString()}</p>
+                  )}
                 </div>
                 <div className="bg-white/10 rounded-lg p-3 backdrop-blur-sm flex-1 min-w-[120px]">
                   <p className="text-xs opacity-75">הועבר ליעד ({selectedMonth})</p>
@@ -854,7 +894,7 @@ const currentMonthName = MONTHS[currentMonthIndex];
                 <FileText className="absolute right-3 top-2 w-5 h-5 text-muted-foreground" />
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pb-24 lg:pb-0">
               <div className="space-y-1">
                 {filteredTransactions.length > 0 ? filteredTransactions.map((t) => {
                   const isSavings = t.category === "חיסכון";
@@ -872,8 +912,8 @@ const currentMonthName = MONTHS[currentMonthIndex];
                       </div>
                       <div className="text-right flex-1">
                         <p className="font-bold text-sm text-foreground">{isSavings ? "הפקדה" : t.title}</p>
-                        <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
-                          {isSavings ? `חיסכון • ${t.subcategory || "יעד ארוך טווח"} • ${t.date}` : `${t.category} ${t.subcategory && `• ${t.subcategory}`} • ${t.date}`}
+                        <p className="text-[10px] text-muted-foreground font-medium tracking-normal">
+                          {isSavings ? `חיסכון • ${t.subcategory || "יעד ארוך טווח"}` : `${t.category}${t.subcategory ? ` • ${t.subcategory}` : ""}`}
                         </p>
                         {t.notes && <p className="text-xs text-muted-foreground mt-1 line-clamp-1 italic">"{t.notes}"</p>}
                       </div>
@@ -942,14 +982,22 @@ const currentMonthName = MONTHS[currentMonthIndex];
                 </div>
                 <div>
                   <p className="font-semibold text-foreground mb-1">נותר לחיסכון:</p>
-                  <p className="text-emerald-600 font-bold">₪{financials.netSavings.toLocaleString()}</p>
+                  {financials.netSavings < 0 ? (
+                    <p className="text-destructive/90 font-medium text-sm">אין אפשרות לחיסכון - ההוצאות עולות על ההכנסות.</p>
+                  ) : (
+                    <p className="text-emerald-600 font-bold">₪{financials.netSavings.toLocaleString()}</p>
+                  )}
                 </div>
                 <div className="pt-2 border-t">
                   <p className="font-semibold text-foreground mb-1">סה"כ הועבר ליעד:</p>
                   <p className="mb-1">₪{totalSavingsTowardsGoal.toLocaleString()} מתוך ₪{goalAmount.toLocaleString()}</p>
                 </div>
                 <p className="pt-2 text-xs">
-                  <span className="text-emerald-600 font-bold">טיפ:</span> העבירו את הכסף שנותר לחיסכון לקטגוריית "חיסכון" כדי לעדכן את היעד
+                  {financials.netSavings < 0 ? (
+                    <span className="text-destructive/90"><span className="font-bold">טיפ:</span> נסו לצמצם הוצאות או להגדיל הכנסות כדי לאפשר חיסכון.</span>
+                  ) : (
+                    <><span className="text-emerald-600 font-bold">טיפ:</span> העבירו את הכסף שנותר לחיסכון לקטגוריית "חיסכון" כדי לעדכן את היעד</>
+                  )}
                 </p>
               </div>
               <Link href="/analytics" className="w-full">
@@ -959,6 +1007,15 @@ const currentMonthName = MONTHS[currentMonthIndex];
           </Card>
         </div>
       </div>
+
+      {/* Mobile Floating Add Button */}
+      <Button
+        className="fixed bottom-6 right-6 lg:hidden z-50 h-14 w-14 rounded-full shadow-lg shadow-primary/30"
+        size="icon"
+        onClick={() => setOpen(true)}
+      >
+        <Plus className="h-6 w-6" />
+      </Button>
     </Layout>
   );
 }

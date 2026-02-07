@@ -1,10 +1,19 @@
+import { useLocation } from "wouter";
 import Layout from "@/components/layout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Card, CardContent } from "@/components/ui/card";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Settings, LogOut, Bell, Shield } from "lucide-react";
+import { useQuickAuth } from "@/contexts/QuickAuthContext";
 
 export default function Profile() {
+  const { logout } = useQuickAuth();
+  const [, setLocation] = useLocation();
+
+  const handleLogout = () => {
+    logout();
+    setLocation("/");
+  };
   return (
     <Layout>
       <div className="max-w-2xl mx-auto space-y-8 text-right" dir="rtl">
@@ -58,7 +67,11 @@ export default function Profile() {
             </CardContent>
           </Card>
 
-          <Button variant="ghost" className="w-full text-destructive hover:text-destructive hover:bg-destructive/5 justify-start h-12 flex-row-reverse">
+          <Button
+            variant="ghost"
+            className="w-full text-destructive hover:text-destructive hover:bg-destructive/5 justify-start h-12 flex-row-reverse"
+            onClick={handleLogout}
+          >
             <LogOut className="w-5 h-5 ml-3" /> התנתקות
           </Button>
         </div>

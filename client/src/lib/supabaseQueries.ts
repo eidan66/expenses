@@ -212,3 +212,180 @@ export async function getSubcategories(categoryName: string): Promise<string[]> 
   return subcategories?.map(s => s.name) || []
 }
 
+// Get categories with full subcategory objects (for management UI)
+export async function getCategoriesWithSubcategories(): Promise<(Category & { subcategories: Subcategory[] })[]> {
+  const { data: categories, error: categoriesError } = await supabase
+    .from('categories')
+    .select('id, name, type')
+    .order('name')
+  
+  if (categoriesError) throw categoriesError
+  if (!categories?.length) return []
+  
+  const { data: subcategories, error: subcategoriesError } = await supabase
+    .from('subcategories')
+    .select('id, category_id, name')
+    .order('name')
+  
+  if (subcategoriesError) throw subcategoriesError
+  
+  return categories.map(cat => ({
+    ...cat,
+    subcategories: subcategories?.filter(sub => sub.category_id === cat.id) || [],
+  }))
+}
+
+// Update category - cascades to transactions
+export async function updateCategory(id: string, updates: { name?: string; type?: 'Expense' | 'Income' }) {
+  if (!updates.name && updates.type === undefined) return
+  
+  // Get old category name for transaction updates
+  const { data: oldCategory, error: fetchError } = await supabase
+    .from('categories')
+    .select('name')
+    .eq('id', id)
+    .single()
+  
+  if (fetchError) throw fetchError
+  if (!oldCategory) throw new Error('Category not found')
+  
+  const updateData: Record<string, unknown> = {}
+  if (updates.name !== undefined) updateData.name = updates.name
+  if (updates.type !== undefined) updateData.type = updates.type
+  
+  const { data: updated, error } = await supabase
+    .from('categories')
+    .update(updateData)
+    .eq('id', id)
+    .select()
+    .single()
+  
+  if (error) throw error
+  
+  // Update transactions that reference the old category name
+  if (updates.name && updates.name !== oldCategory.name) {
+    const { error: txError } = await supabase
+      .from('transactions')
+      .update({ category: updates.name })
+      .eq('category', oldCategory.name)
+    
+    if (txError) throw txError
+  }
+  
+  return updated
+}
+
+// Update subcategory - cascades to transactions
+export async function updateSubcategory(
+  id: string,
+  updates: { name?: string; category_id?: string }
+) {
+  if (!updates.name && !updates.category_id) return
+  
+  const { data: oldSub, error: fetchError } = await supabase
+    .from('subcategories')
+    .select('name, category_id')
+    .eq('id', id)
+    .single()
+  
+  if (fetchError) throw fetchError
+  if (!oldSub) throw new Error('Subcategory not found')
+  
+  // Get parent category name(s) for transaction updates
+  const { data: category, error: catError } = await supabase
+    .from('categories')
+    .select('name')
+    .eq('id', oldSub.category_id)
+    .single()
+  
+  if (catError) throw catError
+  const oldCategoryName = category?.name
+  
+  const updateData: Record<string, unknown> = {}
+  if (updates.name !== undefined) updateData.name = updates.name
+  if (updates.category_id !== undefined) updateData.category_id = updates.category_id
+  
+  const { data: updated, error } = await supabase
+    .from('subcategories')
+    .update(updateData)
+    .eq('id', id)
+    .select()
+    .single()
+  
+  if (error) throw error
+  
+  // Update transactions that reference this subcategory (by old category + subcategory names)
+  const needsTransactionUpdate = oldCategoryName && (
+    (updates.name && updates.name !== oldSub.name) ||
+    (updates.category_id && updates.category_id !== oldSub.category_id)
+  )
+  
+  if (needsTransactionUpdate) {
+    const txUpdates: { subcategory?: string; category?: string } = {}
+    if (updates.name) txUpdates.subcategory = updates.name
+    if (updates.category_id && updates.category_id !== oldSub.category_id) {
+      const { data: newCategory, error: newCatError } = await supabase
+        .from('categories')
+        .select('name')
+        .eq('id', updates.category_id)
+        .single()
+      if (newCatError) throw newCatError
+      if (newCategory?.name) txUpdates.category = newCategory.name
+    }
+    if (Object.keys(txUpdates).length > 0) {
+      const { error: txError } = await supabase
+        .from('transactions')
+        .update(txUpdates)
+        .eq('category', oldCategoryName)
+        .eq('subcategory', oldSub.name)
+      if (txError) throw txError
+    }
+  }
+  
+  return updated
+}
+
+// Create category
+export async function createCategory(data: { name: string; type: 'Expense' | 'Income' }) {
+  const { data: created, error } = await supabase
+    .from('categories')
+    .insert({ name: data.name, type: data.type })
+    .select()
+    .single()
+  
+  if (error) throw error
+  return created
+}
+
+// Create subcategory
+export async function createSubcategory(data: { category_id: string; name: string }) {
+  const { data: created, error } = await supabase
+    .from('subcategories')
+    .insert({ category_id: data.category_id, name: data.name })
+    .select()
+    .single()
+  
+  if (error) throw error
+  return created
+}
+
+// Delete category - cascades to subcategories (ON DELETE CASCADE), transactions keep old category name
+export async function deleteCategory(id: string) {
+  const { error } = await supabase
+    .from('categories')
+    .delete()
+    .eq('id', id)
+  
+  if (error) throw error
+}
+
+// Delete subcategory
+export async function deleteSubcategory(id: string) {
+  const { error } = await supabase
+    .from('subcategories')
+    .delete()
+    .eq('id', id)
+  
+  if (error) throw error
+}
+

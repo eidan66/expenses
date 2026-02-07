@@ -140,8 +140,9 @@ export default function Budget() {
   };
 
   const totalBudgetedSavings = displayCategories.find(c => c.type === "Savings")?.budget || 0;
-  const currentSavingsRate = (totalBudgetedSavings / income) * 100;
-  const isRateValid = currentSavingsRate >= 50;
+  const currentSavingsRate = income > 0 ? (totalBudgetedSavings / income) * 100 : 0;
+  const displaySavingsRate = Number.isFinite(currentSavingsRate) ? currentSavingsRate : 0;
+  const isRateValid = displaySavingsRate >= 50;
 
   return (
     <Layout>
@@ -157,7 +158,7 @@ export default function Budget() {
                  "px-4 py-2 rounded-xl font-bold flex items-center gap-2 border text-sm sm:text-base",
                  isRateValid ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-destructive/10 text-destructive border-destructive/20"
                )}>
-                 שיעור חיסכון: {currentSavingsRate.toFixed(0)}%
+                 שיעור חיסכון: {displaySavingsRate.toFixed(0)}%
                  {!isRateValid && <AlertCircle className="w-4 h-4" />}
                </div>
                
@@ -204,7 +205,7 @@ export default function Budget() {
 
         {!isRateValid && (
           <div className="bg-destructive/10 border border-destructive/20 p-4 rounded-xl text-destructive text-sm flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
-            <AlertCircle className="w-5 h-5 flex-shrink-0" />
+            <AlertCircle className="w-5 h-5 shrink-0" />
             <p><strong>אזהרה:</strong> שיעור החיסכון המתוכנן נמוך מ-50%. המערכת דורשת הקצאה של לפחות ₪{minSavingsAmount.toLocaleString()} לחיסכון.</p>
           </div>
         )}
