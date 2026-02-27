@@ -11,3 +11,6 @@ vite.config.ts.*
 .cursor/mcp.json
 
 .vscode
+
+# Supabase CLI (local cache / temp)
+supabase/.temp/
