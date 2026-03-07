@@ -16,7 +16,8 @@ import Analytics from "@/pages/analytics";
 import QuickLogin from "@/pages/QuickLogin";
 
 function HomePage() {
-  const { isAuthenticated } = useQuickAuth();
+  const { isAuthenticated, isInitializing } = useQuickAuth();
+  if (isInitializing) return null;
   return isAuthenticated ? <Dashboard /> : <QuickLogin />;
 }
 

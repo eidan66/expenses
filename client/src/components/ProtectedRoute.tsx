@@ -3,16 +3,16 @@ import { useLocation } from "wouter";
 import { useEffect } from "react";
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useQuickAuth();
+  const { isAuthenticated, isInitializing } = useQuickAuth();
   const [, setLocation] = useLocation();
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (!isInitializing && !isAuthenticated) {
       setLocation("/");
     }
-  }, [isAuthenticated, setLocation]);
+  }, [isAuthenticated, isInitializing, setLocation]);
 
-  if (!isAuthenticated) {
+  if (isInitializing || !isAuthenticated) {
     return null;
   }
 

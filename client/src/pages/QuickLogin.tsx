@@ -15,11 +15,12 @@ export default function QuickLogin() {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      if (login(username, password)) {
+      const success = await login(username, password);
+      if (success) {
         toast({
           title: "ברוכים השבים!",
           description: "התחברתם בהצלחה.",
@@ -54,13 +55,13 @@ export default function QuickLogin() {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="username">שם משתמש</Label>
+                <Label htmlFor="username">שם משתמש / אימייל</Label>
                 <Input
                   id="username"
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="שם משתמש"
+                  placeholder="שם משתמש או אימייל"
                   className="text-right"
                   autoComplete="username"
                   required

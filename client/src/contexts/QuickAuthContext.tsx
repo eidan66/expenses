@@ -1,12 +1,18 @@
 import { createContext, useContext, useCallback, useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
 
 const QUICK_AUTH_STORAGE_KEY = "nestegg_quick_auth";
 const QUICK_USERNAME = "idansapir9394";
 const QUICK_PASSWORD = "20102025";
 
+// Auto-login: set these in .env.local to skip login UI and sign in as this user by default
+const AUTO_LOGIN_EMAIL = import.meta.env.VITE_SUPABASE_QUICK_AUTH_EMAIL as string | undefined;
+const AUTO_LOGIN_PASSWORD = import.meta.env.VITE_SUPABASE_QUICK_AUTH_PASSWORD as string | undefined;
+
 interface QuickAuthContextType {
   isAuthenticated: boolean;
-  login: (username: string, password: string) => boolean;
+  isInitializing: boolean;
+  login: (usernameOrEmail: string, password: string) => Promise<boolean>;
   logout: () => void;
 }
 
@@ -19,16 +25,52 @@ function getStoredAuth(): boolean {
 
 export function QuickAuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [autoLoginAttempted, setAutoLoginAttempted] = useState(false);
 
   useEffect(() => {
-    setIsAuthenticated(getStoredAuth());
+    const stored = getStoredAuth();
+    if (stored) {
+      setIsAuthenticated(true);
+      setAutoLoginAttempted(true);
+      return;
+    }
+
+    // Auto-login: if env has email+password for default user, sign in and skip login UI
+    if (AUTO_LOGIN_EMAIL && AUTO_LOGIN_PASSWORD) {
+      supabase.auth
+        .signInWithPassword({ email: AUTO_LOGIN_EMAIL, password: AUTO_LOGIN_PASSWORD })
+        .then(({ error }) => {
+          if (!error) {
+            localStorage.setItem(QUICK_AUTH_STORAGE_KEY, "1");
+            setIsAuthenticated(true);
+          }
+        })
+        .finally(() => setAutoLoginAttempted(true));
+      return;
+    }
+
+    setAutoLoginAttempted(true);
   }, []);
 
-  const login = useCallback((username: string, password: string): boolean => {
-    if (username === QUICK_USERNAME && password === QUICK_PASSWORD) {
+  const login = useCallback(async (usernameOrEmail: string, password: string): Promise<boolean> => {
+    // Hardcoded QuickAuth (username only)
+    if (usernameOrEmail === QUICK_USERNAME && password === QUICK_PASSWORD) {
       localStorage.setItem(QUICK_AUTH_STORAGE_KEY, "1");
       setIsAuthenticated(true);
       return true;
+    }
+    // Supabase email/password (when input looks like email)
+    if (usernameOrEmail.includes("@")) {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: usernameOrEmail,
+        password,
+      });
+      if (!error) {
+        localStorage.setItem(QUICK_AUTH_STORAGE_KEY, "1");
+        setIsAuthenticated(true);
+        return true;
+      }
+      return false;
     }
     return false;
   }, []);
@@ -39,7 +81,14 @@ export function QuickAuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <QuickAuthContext.Provider value={{ isAuthenticated, login, logout }}>
+    <QuickAuthContext.Provider
+      value={{
+        isAuthenticated,
+        isInitializing: !autoLoginAttempted,
+        login,
+        logout,
+      }}
+    >
       {children}
     </QuickAuthContext.Provider>
   );
