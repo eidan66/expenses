@@ -58,7 +58,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === "POST") {
-      const body = (req.body ?? {}) as Record<string, unknown>;
+      let body = req.body;
+      if (typeof body === "string") {
+        try {
+          body = JSON.parse(body) as Record<string, unknown>;
+        } catch {
+          body = {};
+        }
+      }
+      body = (body ?? {}) as Record<string, unknown>;
       // Support both flat body and nested body.payload (OpenClaw may send either)
       const payload = (body?.payload as Record<string, unknown>) ?? body;
       const title = (payload?.title ?? body?.title) as string;
@@ -69,7 +77,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const month = (payload?.month ?? body?.month) as string | undefined;
       const year = (payload?.year ?? body?.year) as string | undefined;
       const notes = (payload?.notes ?? body?.notes) as string | undefined;
-      const rawPayload = (payload?.raw_payload ?? body?.raw_payload) as Record<string, unknown> | undefined;
+      let rawPayload = (payload?.raw_payload ?? body?.raw_payload) as Record<string, unknown> | undefined;
+      // Sanitize: ensure JSON-serializable (avoids circular refs, BigInt, etc.)
+      if (rawPayload != null && typeof rawPayload === "object") {
+        try {
+          rawPayload = JSON.parse(JSON.stringify(rawPayload)) as Record<string, unknown>;
+        } catch {
+          rawPayload = null;
+        }
+      } else {
+        rawPayload = null;
+      }
 
       if (!title || !amount || !category || !date) {
         return res.status(400).json({

@@ -40,6 +40,16 @@ When OpenClaw (or any client) receives `500 FUNCTION_INVOCATION_FAILED` from the
 - `categories` and `subcategories` tables
 - `pending_expenses` table — run `supabase-openclaw-pending-migration.sql` in Supabase SQL Editor
 
+## Debug: Ping Endpoint
+
+Test if the API is reachable without Supabase or auth:
+
+```
+GET https://expenses-virid-two.vercel.app/api/openclaw/ping
+```
+
+Expected: `200` with `{ "ok": true, "ts": "..." }`. If this fails, the issue is deployment or routing, not the payloads handler.
+
 ## How to Inspect the Error
 
 1. **Response body:** Check the JSON body for `error` or `message`. Example:
