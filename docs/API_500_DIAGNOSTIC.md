@@ -38,7 +38,7 @@ When OpenClaw (or any client) receives `500 FUNCTION_INVOCATION_FAILED` from the
 **Fix:** Run migrations in Supabase Dashboard → SQL Editor:
 
 - `categories` and `subcategories` tables
-- `pending_expenses` table (see `supabase-openclaw-pending-migration.sql` if present)
+- `pending_expenses` table — run `supabase-openclaw-pending-migration.sql` in Supabase SQL Editor
 
 ## How to Inspect the Error
 
@@ -76,6 +76,7 @@ Content-Type: application/json
 
 - [ ] `SUPABASE_URL` or `VITE_SUPABASE_URL` set in Vercel
 - [ ] `SUPABASE_SERVICE_ROLE_KEY` set in Vercel
+- [ ] `pending_expenses` table exists — run `supabase-openclaw-pending-migration.sql` in Supabase
 - [ ] `OPENCLAW_API_TOKEN` set in Vercel (if using Bearer auth)
 - [ ] Redeploy after changing env vars
 - [ ] `Authorization: Bearer <token>` header when `OPENCLAW_API_TOKEN` is set.
