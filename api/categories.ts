@@ -26,54 +26,61 @@ const CATEGORY_HINTS: Record<string, string> = {
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== "GET") {
-    return res.status(405).json({ error: "Method not allowed" });
+  try {
+    if (req.method !== "GET") {
+      return res.status(405).json({ error: "Method not allowed" });
+    }
+
+    if (!isOpenClawAuthenticated(req)) {
+      return res.status(401).json({
+        error: "Unauthorized: provide Authorization: Bearer <token>",
+      });
+    }
+
+    const supabaseUrl =
+      process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseUrl || !serviceRoleKey) {
+      return res.status(500).json({
+        error: "Missing Supabase env vars (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)",
+      });
+    }
+
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+    const { data: categories, error: catError } = await supabase
+      .from("categories")
+      .select("id, name, type")
+      .order("name");
+
+    if (catError) {
+      return res.status(500).json({ error: catError.message });
+    }
+
+    const { data: subcategories, error: subError } = await supabase
+      .from("subcategories")
+      .select("id, category_id, name")
+      .order("name");
+
+    if (subError) {
+      return res.status(500).json({ error: subError.message });
+    }
+
+    const categoriesWithSubs = (categories ?? []).map((cat) => ({
+      id: cat.id,
+      name: cat.name,
+      type: cat.type,
+      subcategories:
+        (subcategories ?? [])
+          .filter((s) => s.category_id === cat.id)
+          .map((s) => s.name) ?? [],
+      description: CATEGORY_HINTS[cat.name] ?? undefined,
+    }));
+
+    return res.status(200).json({ categories: categoriesWithSubs });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return res.status(500).json({ error: `FUNCTION_INVOCATION_FAILED: ${msg}` });
   }
-
-  if (!isOpenClawAuthenticated(req)) {
-    return res.status(401).json({
-      error: "Unauthorized: provide Authorization: Bearer <token>",
-    });
-  }
-
-  const supabaseUrl =
-    process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !serviceRoleKey) {
-    return res.status(500).json({ error: "Missing Supabase env vars" });
-  }
-
-  const supabase = createClient(supabaseUrl, serviceRoleKey);
-
-  const { data: categories, error: catError } = await supabase
-    .from("categories")
-    .select("id, name, type")
-    .order("name");
-
-  if (catError) {
-    return res.status(500).json({ error: catError.message });
-  }
-
-  const { data: subcategories, error: subError } = await supabase
-    .from("subcategories")
-    .select("id, category_id, name")
-    .order("name");
-
-  if (subError) {
-    return res.status(500).json({ error: subError.message });
-  }
-
-  const categoriesWithSubs = (categories ?? []).map((cat) => ({
-    id: cat.id,
-    name: cat.name,
-    type: cat.type,
-    subcategories:
-      (subcategories ?? [])
-        .filter((s) => s.category_id === cat.id)
-        .map((s) => s.name) ?? [],
-    description: CATEGORY_HINTS[cat.name] ?? undefined,
-  }));
-
-  return res.status(200).json({ categories: categoriesWithSubs });
 }
