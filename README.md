@@ -86,6 +86,8 @@ Visit `http://localhost:4321`
 ## 📚 Documentation
 
 - **[Supabase Setup](SUPABASE_SETUP.md)** - Database and authentication configuration
+- **[OpenClaw Quick Start](docs/OPENCLAW_QUICKSTART.md)** - Invoice/receipt automation with OpenClaw
+- **[OpenClaw Integration](docs/OPENCLAW_INTEGRATION.md)** - Full guide for OpenClaw (APIs, flow, rules)
 - **[Testing Guide](TESTING_GUIDE.md)** - Local testing and verification steps
 - **[Vercel Deployment](VERCEL_DEPLOYMENT.md)** - Production deployment guide
 

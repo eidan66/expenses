@@ -5,6 +5,8 @@
   "license": "MIT",
   "scripts": {
     "dev": "vite dev --port 4321 --config client/vite.config.ts",
+    "dev:api": "node scripts/dev-api.mjs",
+    "dev:all": "concurrently -n api,client -c blue,green \"yarn dev:api\" \"yarn dev\"",
     "build": "vite build --config client/vite.config.ts",
     "preview": "vite preview --config client/vite.config.ts",
     "check": "tsc"
@@ -76,6 +78,7 @@
     "@types/react-dom": "^19.2.0",
     "@vercel/node": "^5.6.9",
     "autoprefixer": "^10.4.21",
+    "concurrently": "^9.2.1",
     "postcss": "^8.5.6",
     "shadcn": "^3.6.2"
   }

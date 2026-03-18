@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { Home, PieChart, Target, User, Menu, BarChart2, FolderTree } from "lucide-react";
+import { Home, PieChart, Target, User, Menu, BarChart2, FolderTree, FileCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -17,6 +17,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { href: "/goals", label: "יעדים", icon: Target },
     { href: "/analytics", label: "אנליטיקה", icon: BarChart2 },
     { href: "/categories", label: "קטגוריות", icon: FolderTree },
+    { href: "/pending-expenses", label: "הוצאות ממתינות", icon: FileCheck },
     { href: "/profile", label: "פרופיל", icon: User },
   ];
 

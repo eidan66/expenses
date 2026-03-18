@@ -1,0 +1,224 @@
+#!/usr/bin/env node
+/**
+ * Local API server for development.
+ * Run: node scripts/dev-api.mjs
+ * Requires: SUPABASE_URL (or VITE_SUPABASE_URL), SUPABASE_SERVICE_ROLE_KEY in .env
+ */
+import { createServer } from "http";
+import { parse as parseUrl } from "url";
+import { createClient } from "@supabase/supabase-js";
+
+// Load .env and .env.local from project root
+import { readFileSync, existsSync } from "fs";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const root = join(__dirname, "..");
+for (const name of [".env", ".env.local", ".env.vercel"]) {
+  const p = join(root, name);
+  if (existsSync(p)) {
+    try {
+      const env = readFileSync(p, "utf8");
+      for (const line of env.split("\n")) {
+        const m = line.match(/^([^#=]+)=(.*)$/);
+        if (m) process.env[m[1].trim()] = m[2].trim().replace(/^["']|["']$/g, "");
+      }
+    } catch (_) {}
+  }
+}
+
+const HEBREW_MONTHS = [
+  "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",
+  "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"
+];
+const DEFAULT_USER_ID = "c0d1a144-90cc-449f-a1ae-a1709cb534ca";
+
+function getSupabase() {
+  const url = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) throw new Error("Missing SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY. Get it from Supabase Dashboard > Settings > API.");
+  return createClient(url, key);
+}
+
+function deriveMonthYear(dateStr) {
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) {
+    const now = new Date();
+    return { month: HEBREW_MONTHS[now.getMonth()], year: String(now.getFullYear()) };
+  }
+  return { month: HEBREW_MONTHS[d.getMonth()], year: String(d.getFullYear()) };
+}
+
+async function handleCategories(supabase, res) {
+  const { data: categories, error: catError } = await supabase
+    .from("categories")
+    .select("id, name, type")
+    .order("name");
+  if (catError) {
+    res.writeHead(500, { "Content-Type": "application/json" });
+    return res.end(JSON.stringify({ error: catError.message }));
+  }
+  const { data: subcategories } = await supabase
+    .from("subcategories")
+    .select("id, category_id, name")
+    .order("name");
+  const cats = (categories || []).map((c) => ({
+    id: c.id,
+    name: c.name,
+    type: c.type,
+    subcategories: (subcategories || []).filter((s) => s.category_id === c.id).map((s) => s.name),
+  }));
+  res.writeHead(200, { "Content-Type": "application/json" });
+  res.end(JSON.stringify({ categories: cats }));
+}
+
+async function handlePayloads(supabase, method, body, res) {
+  const userId = process.env.OPENCLAW_USER_ID ?? DEFAULT_USER_ID;
+  if (method === "GET") {
+    const { data, error } = await supabase
+      .from("pending_expenses")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+    if (error) {
+      res.writeHead(500, { "Content-Type": "application/json" });
+      return res.end(JSON.stringify({ error: error.message }));
+    }
+    res.writeHead(200, { "Content-Type": "application/json" });
+    return res.end(JSON.stringify({ payloads: data ?? [] }));
+  }
+  if (method === "POST") {
+    const { title, amount, category, subcategory, date, month, year, notes, raw_payload } = body || {};
+    if (!title || !amount || !category || !date) {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      return res.end(JSON.stringify({ error: "Missing required fields: title, amount, category, date" }));
+    }
+    let finalMonth = month;
+    let finalYear = year;
+    if (!finalMonth || !finalYear) {
+      const d = deriveMonthYear(date);
+      finalMonth = finalMonth ?? d.month;
+      finalYear = finalYear ?? d.year;
+    }
+    const { data, error } = await supabase
+      .from("pending_expenses")
+      .insert({
+        user_id: userId,
+        title,
+        amount: String(amount),
+        category,
+        subcategory: subcategory ?? null,
+        date,
+        month: finalMonth,
+        year: finalYear,
+        notes: notes ?? null,
+        raw_payload: raw_payload ?? null,
+        status: "pending",
+      })
+      .select()
+      .single();
+    if (error) {
+      res.writeHead(500, { "Content-Type": "application/json" });
+      return res.end(JSON.stringify({ error: error.message }));
+    }
+    res.writeHead(201, { "Content-Type": "application/json" });
+    return res.end(JSON.stringify(data));
+  }
+  res.writeHead(405, { "Content-Type": "application/json" });
+  res.end(JSON.stringify({ error: "Method not allowed" }));
+}
+
+async function handlePayloadById(supabase, id, method, body, res) {
+  if (method !== "POST") {
+    res.writeHead(405, { "Content-Type": "application/json" });
+    return res.end(JSON.stringify({ error: "Method not allowed" }));
+  }
+  const action = (body || {}).action;
+  if (action !== "approve" && action !== "decline") {
+    res.writeHead(400, { "Content-Type": "application/json" });
+    return res.end(JSON.stringify({ error: "Missing or invalid action: use approve or decline" }));
+  }
+  const { data: pending, error: fetchError } = await supabase
+    .from("pending_expenses")
+    .select("*")
+    .eq("id", id)
+    .single();
+  if (fetchError || !pending) {
+    res.writeHead(404, { "Content-Type": "application/json" });
+    return res.end(JSON.stringify({ error: "Pending expense not found" }));
+  }
+  if (pending.status !== "pending") {
+    res.writeHead(400, { "Content-Type": "application/json" });
+    return res.end(JSON.stringify({ error: `Payload already ${pending.status}` }));
+  }
+  if (action === "decline") {
+    await supabase.from("pending_expenses").update({ status: "declined" }).eq("id", id);
+    res.writeHead(200, { "Content-Type": "application/json" });
+    return res.end(JSON.stringify({ ok: true, status: "declined" }));
+  }
+  const { error: insertError } = await supabase.from("transactions").insert({
+    user_id: pending.user_id,
+    title: pending.title,
+    amount: pending.amount,
+    category: pending.category,
+    subcategory: pending.subcategory ?? null,
+    date: pending.date,
+    month: pending.month,
+    year: pending.year,
+    notes: pending.notes ?? null,
+  });
+  if (insertError) {
+    res.writeHead(500, { "Content-Type": "application/json" });
+    return res.end(JSON.stringify({ error: insertError.message }));
+  }
+  await supabase.from("pending_expenses").update({ status: "approved" }).eq("id", id);
+  res.writeHead(200, { "Content-Type": "application/json" });
+  res.end(JSON.stringify({ ok: true, status: "approved" }));
+}
+
+const server = createServer(async (req, res) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  if (req.method === "OPTIONS") {
+    res.writeHead(204);
+    return res.end();
+  }
+  const { pathname } = parseUrl(req.url || "/", true);
+  let body = null;
+  if (req.method === "POST" && req.headers["content-type"]?.includes("application/json")) {
+    const chunks = [];
+    for await (const c of req) chunks.push(c);
+    try {
+      body = JSON.parse(Buffer.concat(chunks).toString());
+    } catch (_) {}
+  }
+  let supabase;
+  try {
+    supabase = getSupabase();
+  } catch (e) {
+    res.writeHead(500, { "Content-Type": "application/json" });
+    return res.end(JSON.stringify({ error: e.message }));
+  }
+  if (pathname === "/api/categories") {
+    return handleCategories(supabase, res);
+  }
+  if (pathname === "/api/openclaw/payloads") {
+    return handlePayloads(supabase, req.method, body, res);
+  }
+  const m = pathname?.match(/^\/api\/openclaw\/payloads\/([^/]+)$/);
+  if (m) {
+    return handlePayloadById(supabase, m[1], req.method, body, res);
+  }
+  res.writeHead(404, { "Content-Type": "application/json" });
+  res.end(JSON.stringify({ error: "Not found" }));
+});
+
+const port = 3000;
+server.listen(port, () => {
+  console.log(`Dev API server: http://localhost:${port}`);
+  console.log("  GET  /api/categories");
+  console.log("  GET  /api/openclaw/payloads");
+  console.log("  POST /api/openclaw/payloads");
+  console.log("  POST /api/openclaw/payloads/:id (body: { action: 'approve'|'decline' })");
+});

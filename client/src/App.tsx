@@ -13,6 +13,7 @@ import Goals from "@/pages/goals";
 import Profile from "@/pages/profile";
 import Categories from "@/pages/categories";
 import Analytics from "@/pages/analytics";
+import PendingExpenses from "@/pages/pending-expenses";
 import QuickLogin from "@/pages/QuickLogin";
 
 function HomePage() {
@@ -49,6 +50,11 @@ function Router() {
       <Route path="/categories">
         <ProtectedRoute>
           <Categories />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/pending-expenses">
+        <ProtectedRoute>
+          <PendingExpenses />
         </ProtectedRoute>
       </Route>
       <Route component={NotFound} />

@@ -14,3 +14,6 @@ vite.config.ts.*
 
 # Supabase CLI (local cache / temp)
 supabase/.temp/
+.vercel
+.env*.local
+.env.vercel
