@@ -4,7 +4,7 @@ One-time setup, then one command to run everything.
 
 ## 1. One-time setup
 
-Add `SUPABASE_SERVICE_ROLE_KEY` to your project:
+Add `SUPABASE_SERVICE_ROLE_KEY` and optionally `OPENCLAW_API_TOKEN` to your project:
 
 **Option A – Supabase Dashboard**
 1. Open [Supabase API Settings](https://supabase.com/dashboard/project/yaofpgeatsbrswjkwgwm/settings/api)
@@ -16,6 +16,8 @@ Add `SUPABASE_SERVICE_ROLE_KEY` to your project:
 2. `vercel env pull .env.vercel`
 
 **Run migration** (one-time): Supabase Dashboard → SQL Editor → run `supabase-openclaw-pending-migration.sql`
+
+**OpenClaw token** (optional): To require Bearer auth for OpenClaw, add `OPENCLAW_API_TOKEN` to `.env` and Vercel. See [OPENCLAW_CREDENTIALS.md](OPENCLAW_CREDENTIALS.md).
 
 ## 2. Run everything
 

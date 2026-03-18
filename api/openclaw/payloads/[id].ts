@@ -57,10 +57,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // approve: insert into transactions, then update status
+  // Negate amount for expense categories (app convention: expenses are negative)
+  const isExpenseCategory =
+    pending.category !== "הכנסה" && pending.category !== "חיסכון";
+  const amountNum = parseFloat(String(pending.amount));
+  const finalAmount =
+    isExpenseCategory && amountNum > 0 ? (-amountNum).toString() : pending.amount;
+
   const { error: insertError } = await supabase.from("transactions").insert({
     user_id: pending.user_id,
     title: pending.title,
-    amount: pending.amount,
+    amount: finalAmount,
     category: pending.category,
     subcategory: pending.subcategory ?? null,
     date: pending.date,

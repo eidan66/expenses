@@ -114,14 +114,6 @@ export default function Analytics() {
     return { name: m.name, total: runningTotal };
   });
 
-  const rawSavingsRate = monthlyData.length > 0
-    ? (monthlyData.reduce((acc, curr) => {
-        const rate = curr.income > 0 ? curr.savings / curr.income : 0;
-        return acc + (Number.isFinite(rate) ? rate : 0);
-      }, 0) / monthlyData.length) * 100
-    : 0;
-  const savingsRate = Number.isFinite(rawSavingsRate) ? rawSavingsRate : 0;
-
   const avgIncome = monthlyData.length > 0
     ? monthlyData.reduce((acc, curr) => acc + curr.income, 0) / monthlyData.length
     : 0;
@@ -150,16 +142,7 @@ export default function Analytics() {
           <p className="text-sm sm:text-base text-muted-foreground">ניתוח מעמיק של הרגלי הצריכה והחיסכון שלכם</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="border-none shadow-sm bg-emerald-50/50">
-            <CardContent className="p-6 text-right">
-              <p className="text-sm font-medium text-emerald-600 mb-1">שיעור חיסכון ממוצע</p>
-              <h3 className="text-2xl font-bold">{(Number.isFinite(savingsRate) ? savingsRate : 0).toFixed(1)}%</h3>
-              <p className="text-xs text-emerald-600/70 mt-1 flex items-center justify-end">
-                <TrendingUp className="w-3 h-3 ml-1" /> מחושב על בסיס חודשי
-              </p>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <Card className="border-none shadow-sm bg-blue-50/50">
             <CardContent className="p-6 text-right">
               <p className="text-sm font-medium text-blue-600 mb-1">הכנסה חודשית ממוצעת</p>

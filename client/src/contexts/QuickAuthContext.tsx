@@ -31,6 +31,15 @@ export function QuickAuthProvider({ children }: { children: React.ReactNode }) {
     const stored = getStoredAuth();
     if (stored) {
       setIsAuthenticated(true);
+      // Ensure Supabase session exists (needed for RLS to return data)
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (!session && AUTO_LOGIN_EMAIL && AUTO_LOGIN_PASSWORD) {
+          supabase.auth.signInWithPassword({
+            email: AUTO_LOGIN_EMAIL,
+            password: AUTO_LOGIN_PASSWORD,
+          });
+        }
+      });
       setAutoLoginAttempted(true);
       return;
     }
@@ -53,8 +62,11 @@ export function QuickAuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = useCallback(async (usernameOrEmail: string, password: string): Promise<boolean> => {
-    // Hardcoded QuickAuth (username only)
+    // Hardcoded QuickAuth (username only) — must also sign into Supabase so RLS returns data
     if (usernameOrEmail === QUICK_USERNAME && password === QUICK_PASSWORD) {
+      const email = AUTO_LOGIN_EMAIL || `${QUICK_USERNAME}@gmail.com`;
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) return false;
       localStorage.setItem(QUICK_AUTH_STORAGE_KEY, "1");
       setIsAuthenticated(true);
       return true;
@@ -77,6 +89,7 @@ export function QuickAuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(() => {
     localStorage.removeItem(QUICK_AUTH_STORAGE_KEY);
+    supabase.auth.signOut();
     setIsAuthenticated(false);
   }, []);
 

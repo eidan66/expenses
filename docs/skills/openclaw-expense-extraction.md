@@ -46,6 +46,7 @@ Use **GET /api/categories** to fetch the current list. Below is the reference fo
 | בילויים ופנאי | Entertainment, leisure | — |
 | שונות | Miscellaneous | מזומן, אחר |
 | חיסכון | Savings | יעד ארוך טווח, קרן חירום |
+| גמל להשקעה | Investment provident fund | — |
 | קניות | Shopping, supermarket | סופר, שוק, אחר |
 
 ### Income Category

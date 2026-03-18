@@ -49,6 +49,15 @@ function deriveMonthYear(dateStr) {
   return { month: HEBREW_MONTHS[d.getMonth()], year: String(d.getFullYear()) };
 }
 
+function isOpenClawAuthenticated(headers) {
+  const token = process.env.OPENCLAW_API_TOKEN;
+  if (!token) return true;
+  const auth = headers?.authorization;
+  const authStr = Array.isArray(auth) ? auth[0] : auth;
+  if (!authStr?.startsWith("Bearer ")) return true;
+  return authStr.slice(7) === token;
+}
+
 async function handleCategories(supabase, res) {
   const { data: categories, error: catError } = await supabase
     .from("categories")
@@ -156,10 +165,14 @@ async function handlePayloadById(supabase, id, method, body, res) {
     res.writeHead(200, { "Content-Type": "application/json" });
     return res.end(JSON.stringify({ ok: true, status: "declined" }));
   }
+  // Negate amount for expense categories (app convention: expenses are negative)
+  const isExpenseCategory = pending.category !== "הכנסה" && pending.category !== "חיסכון";
+  const amountNum = parseFloat(String(pending.amount));
+  const finalAmount = isExpenseCategory && amountNum > 0 ? String(-amountNum) : pending.amount;
   const { error: insertError } = await supabase.from("transactions").insert({
     user_id: pending.user_id,
     title: pending.title,
-    amount: pending.amount,
+    amount: finalAmount,
     category: pending.category,
     subcategory: pending.subcategory ?? null,
     date: pending.date,
@@ -179,7 +192,7 @@ async function handlePayloadById(supabase, id, method, body, res) {
 const server = createServer(async (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   if (req.method === "OPTIONS") {
     res.writeHead(204);
     return res.end();
@@ -201,9 +214,17 @@ const server = createServer(async (req, res) => {
     return res.end(JSON.stringify({ error: e.message }));
   }
   if (pathname === "/api/categories") {
+    if (!isOpenClawAuthenticated(req.headers)) {
+      res.writeHead(401, { "Content-Type": "application/json" });
+      return res.end(JSON.stringify({ error: "Unauthorized: provide Authorization: Bearer <token>" }));
+    }
     return handleCategories(supabase, res);
   }
   if (pathname === "/api/openclaw/payloads") {
+    if (!isOpenClawAuthenticated(req.headers)) {
+      res.writeHead(401, { "Content-Type": "application/json" });
+      return res.end(JSON.stringify({ error: "Unauthorized: provide Authorization: Bearer <token>" }));
+    }
     return handlePayloads(supabase, req.method, body, res);
   }
   const m = pathname?.match(/^\/api\/openclaw\/payloads\/([^/]+)$/);

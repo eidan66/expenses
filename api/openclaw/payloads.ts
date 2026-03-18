@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
+import { isOpenClawAuthenticated } from "../../lib/openclawAuth";
 
 const HEBREW_MONTHS = [
   "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",
@@ -34,6 +35,12 @@ function deriveMonthYear(dateStr: string): { month: string; year: string } {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (!isOpenClawAuthenticated(req)) {
+    return res.status(401).json({
+      error: "Unauthorized: provide Authorization: Bearer <token>",
+    });
+  }
+
   const supabase = getSupabase();
   const userId = process.env.OPENCLAW_USER_ID ?? DEFAULT_USER_ID;
 

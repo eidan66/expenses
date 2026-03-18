@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
+import { isOpenClawAuthenticated } from "./lib/openclawAuth";
 
 // Optional descriptions/keywords per category for OpenClaw matching
 const CATEGORY_HINTS: Record<string, string> = {
@@ -19,6 +20,7 @@ const CATEGORY_HINTS: Record<string, string> = {
   "בילויים ופנאי": "entertainment, leisure, fun",
   שונות: "miscellaneous, cash, other",
   חיסכון: "savings, emergency fund, long-term goal",
+  "גמל להשקעה": "investment provident fund, gemel, pension savings",
   הכנסה: "income, salary, earnings",
   קניות: "shopping, supermarket, market",
 };
@@ -26,6 +28,12 @@ const CATEGORY_HINTS: Record<string, string> = {
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "GET") {
     return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  if (!isOpenClawAuthenticated(req)) {
+    return res.status(401).json({
+      error: "Unauthorized: provide Authorization: Bearer <token>",
+    });
   }
 
   const supabaseUrl =

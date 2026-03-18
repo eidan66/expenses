@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { Plus, ArrowUpRight, ArrowDownRight, TrendingUp, Home, Wallet, AlertCircle, FileText, Calendar, Pencil, Trash2, PiggyBank } from "lucide-react";
+import { Plus, ArrowUpRight, ArrowDownRight, TrendingUp, Home, Wallet, AlertCircle, FileText, Calendar, Pencil, Trash2, PiggyBank, SortDesc, SortAsc } from "lucide-react";
 import { BudgetPieChart } from "@/components/budget-chart";
 import { cn, safeParseFloat, safeParseInt, formatNumberWithCommas, parseFormattedNumber } from "@/lib/utils";
 import {
@@ -46,6 +46,7 @@ const currentMonthName = MONTHS[currentMonthIndex];
   const [editGoalDialogOpen, setEditGoalDialogOpen] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(currentMonthName);
   const [selectedYear, setSelectedYear] = useState(currentYearStr);
+  const [activitySortOrder, setActivitySortOrder] = useState<"desc" | "asc">("desc");
   const [newGoal, setNewGoal] = useState({
     name: "",
     targetAmount: ""
@@ -337,13 +338,32 @@ const currentMonthName = MONTHS[currentMonthIndex];
   };
 
   const filteredTransactions = transactions.filter(t => {
-    const matchesSearch = t.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    const searchDigits = searchQuery.replace(/[^\d.-]/g, "");
+    const amountDigits = (t.amount || "").replace(/[^\d.-]/g, "");
+    const matchesSearch = t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          (t.notes || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
                          t.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         (t.subcategory || "").toLowerCase().includes(searchQuery.toLowerCase());
+                         (t.subcategory || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         (searchDigits && amountDigits.includes(searchDigits));
     const matchesMonth = t.month === selectedMonth;
     const matchesYear = t.year === selectedYear; // New filter
     return matchesSearch && matchesMonth && matchesYear;
+  });
+
+  const sortedTransactions = [...filteredTransactions].sort((a, b) => {
+    // Prefer created_at (when added) > updated_at > date (expense date)
+    const t = (x: typeof a) => x as { created_at?: string; updated_at?: string };
+    const aVal = t(a).created_at || t(a).updated_at || a.date;
+    const bVal = t(b).created_at || t(b).updated_at || b.date;
+    const aTime = new Date(aVal).getTime();
+    const bTime = new Date(bVal).getTime();
+    const cmp = Number.isNaN(aTime) || Number.isNaN(bTime)
+      ? aVal.localeCompare(bVal)
+      : aTime - bTime;
+    if (cmp !== 0) return activitySortOrder === "desc" ? -cmp : cmp;
+    return activitySortOrder === "desc"
+      ? b.id.localeCompare(a.id)
+      : a.id.localeCompare(b.id);
   });
 
   const isNewTxFormValid = Boolean(
@@ -382,8 +402,8 @@ const currentMonthName = MONTHS[currentMonthIndex];
                 {financials.netSavings < 0
                   ? "ההוצאות עולות על ההכנסות החודש - אין אפשרות לחיסכון."
                   : savingsRate < 20
-                    ? `שיעור החיסכון כרגע ${(savingsRate).toFixed(0)}% - נסו להגדיל את החיסכון החודשי.`
-                    : `אתם שומרים על קצב חיסכון בריא של ${(savingsRate).toFixed(0)}%.`}
+                    ? "נסו להגדיל את החיסכון החודשי."
+                    : "אתם שומרים על קצב חיסכון בריא."}
               </p>
             </div>
             <div className="flex items-center gap-2 bg-muted/50 p-2 rounded-xl">
@@ -413,14 +433,6 @@ const currentMonthName = MONTHS[currentMonthIndex];
           </div>
           
           <div className="flex gap-3">
-            <div className={cn(
-              "px-4 py-2 rounded-full font-bold flex items-center gap-2 shadow-sm border",
-              savingsRate >= 50 ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-destructive/10 text-destructive border-destructive/20"
-            )}>
-              שיעור: {savingsRate.toFixed(0)}%
-              {savingsRate < 50 && <AlertCircle className="w-4 h-4" />}
-            </div>
-            
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
                 <Button className="rounded-full shadow-lg shadow-primary/20 hover:shadow-primary/30">
@@ -445,7 +457,7 @@ const currentMonthName = MONTHS[currentMonthIndex];
                       <Label>סכום (₪) *</Label>
                       <Input 
                         type="text" 
-                        inputMode="numeric"
+                        inputMode="decimal"
                         placeholder="0" 
                         value={formatNumberWithCommas(newTx.amount)}
                         onChange={(e) => {
@@ -573,7 +585,7 @@ const currentMonthName = MONTHS[currentMonthIndex];
                       <Label>סכום (₪) *</Label>
                       <Input 
                         type="text" 
-                        inputMode="numeric"
+                        inputMode="decimal"
                         placeholder="0" 
                         className="text-right"
                         value={editingTransaction ? formatNumberWithCommas(Math.abs(safeParseFloat(editingTransaction.amount)).toString()) : ""}
@@ -883,10 +895,25 @@ const currentMonthName = MONTHS[currentMonthIndex];
         <div className="flex flex-col lg:grid lg:grid-cols-3 gap-6">
           <Card className="lg:col-span-2 border-none shadow-sm overflow-hidden">
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="font-heading text-lg">פעילות - {selectedMonth}</CardTitle>
+              <CardTitle className="font-heading text-lg flex items-center gap-2">
+                פעילות - {selectedMonth}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0"
+                  onClick={() => setActivitySortOrder((o) => (o === "desc" ? "asc" : "desc"))}
+                  title={activitySortOrder === "desc" ? "חדש ביותר ראשון (לחץ להפוך)" : "ישן ביותר ראשון (לחץ להפוך)"}
+                >
+                  {activitySortOrder === "desc" ? (
+                    <SortDesc className="w-4 h-4 text-muted-foreground" />
+                  ) : (
+                    <SortAsc className="w-4 h-4 text-muted-foreground" />
+                  )}
+                </Button>
+              </CardTitle>
               <div className="relative w-64">
                 <Input 
-                  placeholder="חפשו הערות או פריטים..." 
+                  placeholder="חפשו לפי הערות, פריטים או סכום..." 
                   className="rounded-full h-9 text-sm pr-10 text-right"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -896,9 +923,12 @@ const currentMonthName = MONTHS[currentMonthIndex];
             </CardHeader>
             <CardContent className="pb-24 lg:pb-0">
               <div className="space-y-1">
-                {filteredTransactions.length > 0 ? filteredTransactions.map((t) => {
+                {sortedTransactions.length > 0 ? sortedTransactions.map((t) => {
                   const isSavings = t.category === "חיסכון";
-                  const isIncome = safeParseFloat(t.amount) > 0 && !isSavings;
+                  const isIncome =
+                    safeParseFloat(t.amount) > 0 &&
+                    t.category === "הכנסה" &&
+                    !isSavings;
                   const amount = Math.abs(safeParseFloat(t.amount));
                   
                   return (
@@ -923,7 +953,7 @@ const currentMonthName = MONTHS[currentMonthIndex];
                         "font-bold font-heading",
                         isSavings ? "text-blue-600" : isIncome ? "text-emerald-600" : "text-foreground"
                       )}>
-                        {isSavings ? "₪" : isIncome ? "+₪" : "₪"}{amount.toLocaleString()}
+                        {isSavings ? "₪" : isIncome ? "+₪" : "₪"}{amount.toLocaleString("he-IL", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                       </span>
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Button 
@@ -967,10 +997,6 @@ const currentMonthName = MONTHS[currentMonthIndex];
               <CardTitle className="font-heading text-lg">חוק ה-50%</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 text-center">
-                <p className="text-3xl font-bold text-emerald-600 font-heading tracking-tight">{(savingsRate).toFixed(0)}%</p>
-                <p className="text-xs font-semibold text-emerald-700/70 uppercase">שיעור חיסכון {selectedMonth}</p>
-              </div>
               <div className="text-xs text-muted-foreground leading-relaxed text-right space-y-2">
                 <div>
                   <p className="font-semibold text-foreground mb-1">הכנסות החודש:</p>

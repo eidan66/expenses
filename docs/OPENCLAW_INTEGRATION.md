@@ -19,6 +19,14 @@ This document describes OpenClaw’s role in the NestEgg expense automation flow
 
 Base URL: `https://expenses-virid-two.vercel.app/api` (or `http://localhost:3000/api` in dev)
 
+**Authentication:** When `OPENCLAW_API_TOKEN` is configured, include this header on all requests:
+
+```
+Authorization: Bearer <OPENCLAW_API_TOKEN>
+```
+
+See [OpenClaw Credentials](OPENCLAW_CREDENTIALS.md) for the token and setup.
+
 ### 2.1 GET /api/categories
 
 **Purpose:** Fetch all categories and subcategories for matching.
@@ -26,6 +34,7 @@ Base URL: `https://expenses-virid-two.vercel.app/api` (or `http://localhost:3000
 **Request:**
 ```
 GET /api/categories
+Authorization: Bearer <token>
 ```
 
 **Response:**
@@ -59,6 +68,7 @@ GET /api/categories
 ```
 POST /api/openclaw/payloads
 Content-Type: application/json
+Authorization: Bearer <token>
 ```
 
 **Body (required fields):**
@@ -190,6 +200,7 @@ Use the **OpenClaw Expense Extraction** skill (`docs/skills/openclaw-expense-ext
 
 ```http
 GET /api/categories
+Authorization: Bearer <token>
 ```
 
 ### 6.2 Build and POST payload
@@ -219,6 +230,7 @@ GET /api/categories
 |------|---------|--------|
 | 201 | Created | Payload stored; human will review |
 | 400 | Bad request | Check required fields and format |
+| 401 | Unauthorized | Provide `Authorization: Bearer <token>` (see OPENCLAW_CREDENTIALS.md) |
 | 405 | Method not allowed | Use GET for categories, POST for payloads |
 | 500 | Server error | Retry later or report |
 

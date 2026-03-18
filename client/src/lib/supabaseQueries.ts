@@ -9,7 +9,7 @@ export async function getTransactions() {
   const { data, error } = await supabase
     .from('transactions')
     .select('*')
-    .order('date', { ascending: false })
+    .order('updated_at', { ascending: false })
   
   if (error) throw error
   return data

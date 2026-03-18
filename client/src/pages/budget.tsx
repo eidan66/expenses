@@ -154,14 +154,6 @@ export default function Budget() {
               <p className="text-sm sm:text-base text-muted-foreground">תכנון חודשי מול ביצוע בפועל</p>
             </div>
             <div className="flex flex-wrap gap-3">
-               <div className={cn(
-                 "px-4 py-2 rounded-xl font-bold flex items-center gap-2 border text-sm sm:text-base",
-                 isRateValid ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-destructive/10 text-destructive border-destructive/20"
-               )}>
-                 שיעור חיסכון: {displaySavingsRate.toFixed(0)}%
-                 {!isRateValid && <AlertCircle className="w-4 h-4" />}
-               </div>
-               
                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                  <DialogTrigger asChild>
                    <Button className="rounded-full shadow-lg shadow-primary/20"><Plus className="w-4 h-4 ml-2" />קטגוריה חדשה</Button>
