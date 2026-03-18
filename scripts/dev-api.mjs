@@ -97,7 +97,21 @@ async function handlePayloads(supabase, method, body, res) {
     return res.end(JSON.stringify({ payloads: data ?? [] }));
   }
   if (method === "POST") {
-    const { title, amount, category, subcategory, date, month, year, notes, raw_payload } = body || {};
+    const raw = body || {};
+    const payload = raw.payload || raw;
+    let { title, amount, category, subcategory, date, month, year, notes, raw_payload } = {
+      ...raw,
+      ...payload,
+    };
+    if (raw_payload != null && typeof raw_payload === "object") {
+      try {
+        raw_payload = JSON.parse(JSON.stringify(raw_payload));
+      } catch {
+        raw_payload = null;
+      }
+    } else {
+      raw_payload = null;
+    }
     if (!title || !amount || !category || !date) {
       res.writeHead(400, { "Content-Type": "application/json" });
       return res.end(JSON.stringify({ error: "Missing required fields: title, amount, category, date" }));
@@ -219,6 +233,10 @@ const server = createServer(async (req, res) => {
       return res.end(JSON.stringify({ error: "Unauthorized: provide Authorization: Bearer <token>" }));
     }
     return handleCategories(supabase, res);
+  }
+  if (pathname === "/api/openclaw/ping") {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    return res.end(JSON.stringify({ ok: true, ts: new Date().toISOString() }));
   }
   if (pathname === "/api/openclaw/payloads") {
     if (!isOpenClawAuthenticated(req.headers)) {

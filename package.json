@@ -9,7 +9,9 @@
     "dev:all": "concurrently -n api,client -c blue,green \"yarn dev:api\" \"yarn dev\"",
     "build": "vite build --config client/vite.config.ts",
     "preview": "vite preview --config client/vite.config.ts",
-    "check": "tsc"
+    "check": "tsc",
+    "test:openclaw": "node scripts/test-openclaw.mjs",
+    "test:openclaw:prod": "node scripts/test-openclaw.mjs https://expenses-virid-two.vercel.app"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
