@@ -1,6 +1,14 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
-import { isOpenClawAuthenticated } from "../lib/openclawAuth";
+
+function isOpenClawAuthenticated(req: { headers?: Record<string, string | string[] | undefined> }): boolean {
+  const token = process.env.OPENCLAW_API_TOKEN;
+  if (!token) return true;
+  const auth = req.headers?.["authorization"] ?? req.headers?.["Authorization"];
+  const authStr = Array.isArray(auth) ? auth[0] : auth;
+  if (!authStr?.startsWith("Bearer ")) return true;
+  return authStr.slice(7).trim() === token.trim();
+}
 
 const HEBREW_MONTHS = [
   "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",
