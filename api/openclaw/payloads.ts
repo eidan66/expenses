@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
-import { isOpenClawAuthenticated } from "../../lib/openclawAuth";
+import { isOpenClawAuthenticated } from "../lib/openclawAuth";
 
 const HEBREW_MONTHS = [
   "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",
@@ -83,10 +83,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         try {
           rawPayload = JSON.parse(JSON.stringify(rawPayload)) as Record<string, unknown>;
         } catch {
-          rawPayload = null;
+          rawPayload = undefined;
         }
       } else {
-        rawPayload = null;
+        rawPayload = undefined;
       }
 
       if (!title || !amount || !category || !date) {
