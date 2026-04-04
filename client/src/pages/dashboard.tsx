@@ -27,12 +27,11 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { type Transaction, type InsertTransaction, type Goal, type InsertGoal } from "@shared/schema";
 import { getTransactions, createTransaction, getGoals, createGoal, updateTransaction, deleteTransaction, deleteTransactionsByIds, updateGoal, deleteGoal, getCategories } from "@/lib/supabaseQueries";
+import { BUDGET_SELECTABLE_YEARS, HEBREW_MONTHS } from "@/lib/budgetConstants";
 
-const MONTHS = [
-  "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני", "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"
-];
+const MONTHS = [...HEBREW_MONTHS];
 
-const YEARS = ["2024", "2025", "2026", "2027", "2028", "2029", "2030"];
+const YEARS = [...BUDGET_SELECTABLE_YEARS];
 
 const ACTIVITY_FILTER_ALL_CATEGORIES = "__all_categories__";
 const ACTIVITY_FILTER_ALL_SUBCATEGORIES = "__all_subcategories__";
@@ -52,8 +51,8 @@ const currentMonthName = MONTHS[currentMonthIndex];
   const [editTransactionDialogOpen, setEditTransactionDialogOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [editGoalDialogOpen, setEditGoalDialogOpen] = useState(false);
-  const [selectedMonth, setSelectedMonth] = useState(currentMonthName);
-  const [selectedYear, setSelectedYear] = useState(currentYearStr);
+  const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthName);
+  const [selectedYear, setSelectedYear] = useState<string>(currentYearStr);
   const [activitySortOrder, setActivitySortOrder] = useState<"desc" | "asc">("desc");
   const [newGoal, setNewGoal] = useState({
     name: "",
@@ -177,14 +176,22 @@ const currentMonthName = MONTHS[currentMonthIndex];
     () => new Set<string>()
   );
   
-  const [newTx, setNewTx] = useState({
+  const [newTx, setNewTx] = useState<{
+    title: string;
+    amount: string;
+    category: string;
+    subcategory: string;
+    notes: string;
+    month: string;
+    year: string;
+  }>({
     title: "",
     amount: "",
     category: "",
     subcategory: "",
     notes: "",
     month: currentMonthName,
-    year: currentYearStr
+    year: currentYearStr,
   });
 
   const createTransactionMutation = useMutation({
