@@ -29,7 +29,7 @@ const CATEGORY_HINTS: Record<string, string> = {
   שונות: "miscellaneous, cash, other",
   חיסכון: "savings, emergency fund, long-term goal",
   "גמל להשקעה": "investment provident fund, gemel, pension savings",
-  הכנסה: "income, salary, earnings",
+  הכנסה: "income, salary, earnings, dividend, gifts, selling item from home",
   קניות: "shopping, supermarket, market",
 };
 

@@ -21,7 +21,15 @@ export default function Budget() {
     queryFn: getTransactions
   });
 
-  // Calculate actual income from transactions (הכנסות עידן + הכנסות ספיר)
+  const INCOME_SUBCATEGORIES_FOR_BUDGET = new Set([
+    "הכנסות עידן",
+    "הכנסות ספיר",
+    "דיבידנט",
+    "מכירה של מוצר מהבית",
+    "מתנות",
+  ]);
+
+  // Calculate actual income from transactions (salary + dividend, gifts, home sale, etc.)
   const calculateMonthlyIncome = () => {
     const currentMonth = new Date().toLocaleString('he-IL', { month: 'long' });
     const currentYear = new Date().getFullYear().toString();
@@ -29,8 +37,8 @@ export default function Budget() {
     return transactions
       .filter(t => t.month === currentMonth && t.year === currentYear && t.category === "הכנסה")
       .reduce((sum, t) => {
-        // Check for specific salary subcategories
-        if (t.subcategory === "הכנסות עידן" || t.subcategory === "הכנסות ספיר") {
+        const sub = t.subcategory ?? "";
+        if (sub && INCOME_SUBCATEGORIES_FOR_BUDGET.has(sub)) {
           return sum + Math.abs(safeParseFloat(t.amount));
         }
         return sum;
