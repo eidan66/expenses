@@ -31,16 +31,28 @@ export function QuickAuthProvider({ children }: { children: React.ReactNode }) {
     const stored = getStoredAuth();
     if (stored) {
       setIsAuthenticated(true);
-      // Ensure Supabase session exists (needed for RLS to return data)
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (!session && AUTO_LOGIN_EMAIL && AUTO_LOGIN_PASSWORD) {
-          supabase.auth.signInWithPassword({
-            email: AUTO_LOGIN_EMAIL,
-            password: AUTO_LOGIN_PASSWORD,
-          });
+      // Wait until Supabase has a session before finishing init. Otherwise the dashboard
+      // mounts and getTransactions runs without a JWT — RLS returns [] with HTTP 200.
+      // Use the same email/password fallbacks as manual QuickAuth login (Vercel often has
+      // URL + anon key but not VITE_SUPABASE_QUICK_AUTH_PASSWORD).
+      void (async () => {
+        try {
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
+          if (!session) {
+            const email = AUTO_LOGIN_EMAIL || `${QUICK_USERNAME}@gmail.com`;
+            const password = AUTO_LOGIN_PASSWORD || QUICK_PASSWORD;
+            const { error } = await supabase.auth.signInWithPassword({ email, password });
+            if (error) {
+              localStorage.removeItem(QUICK_AUTH_STORAGE_KEY);
+              setIsAuthenticated(false);
+            }
+          }
+        } finally {
+          setAutoLoginAttempted(true);
         }
-      });
-      setAutoLoginAttempted(true);
+      })();
       return;
     }
 

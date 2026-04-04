@@ -14,11 +14,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useQuery } from "@tanstack/react-query";
 import { type Transaction } from "@shared/schema";
 import { getTransactions } from "@/lib/supabaseQueries";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function Budget() {
+  const { session, loading: authLoading } = useAuth();
   const { data: transactions = [] } = useQuery<Transaction[]>({ 
     queryKey: ['transactions'],
-    queryFn: getTransactions
+    queryFn: getTransactions,
+    enabled: !authLoading && !!session,
   });
 
   const INCOME_SUBCATEGORIES_FOR_BUDGET = new Set([
@@ -63,6 +66,7 @@ export default function Budget() {
       "קניות אונליין": "רצונות ודיגיטל",
       "שירותים דיגיטליים": "רצונות ודיגיטל",
       "חשבונות קבועים": "רצונות ודיגיטל",
+      מנויים: "רצונות ודיגיטל",
       "בילויים ופנאי": "רצונות ודיגיטל",
       "חיות": "רצונות ודיגיטל",
       "תקשורת": "רצונות ודיגיטל",

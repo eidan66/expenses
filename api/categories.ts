@@ -18,6 +18,7 @@ const CATEGORY_HINTS: Record<string, string> = {
   צריכה: "consumption, food, groceries, toiletries, hygiene",
   "ביגוד והנעלה": "clothing, shoes, fashion",
   "חשבונות קבועים": "fixed bills, TV, Netflix, Disney+, security cameras",
+  מנויים: "subscriptions, Spotify, Netflix, Disney+, TV, streaming, music",
   תקשורת: "communication, phone, mobile",
   "תחבורה (רכב)": "car, vehicle, fuel, parking, maintenance, insurance, test",
   "תחבורה (אופנוע)": "motorcycle, scooter, fuel, parking, maintenance",

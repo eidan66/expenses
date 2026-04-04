@@ -50,6 +50,16 @@ export async function deleteTransaction(id: string) {
   if (error) throw error
 }
 
+export async function deleteTransactionsByIds(ids: string[]) {
+  if (ids.length === 0) return
+  const { error } = await supabase
+    .from('transactions')
+    .delete()
+    .in('id', ids)
+
+  if (error) throw error
+}
+
 export async function updateTransaction(id: string, updates: Partial<InsertTransaction>) {
   const updateData: any = {}
   if (updates.title !== undefined) updateData.title = updates.title

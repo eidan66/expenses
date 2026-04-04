@@ -64,13 +64,18 @@ export function SearchableSelect({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-(--radix-popover-trigger-width) p-0"
+        className={cn(
+          "flex max-h-(--radix-popover-content-available-height) w-(--radix-popover-trigger-width) flex-col overflow-hidden p-0"
+        )}
         dir="rtl"
         align="start"
       >
-        <Command dir="rtl">
+        <Command
+          dir="rtl"
+          className="h-auto min-h-0 flex-1 flex-col overflow-hidden"
+        >
           <CommandInput placeholder={searchPlaceholder} className="text-right" />
-          <CommandList>
+          <CommandList className="max-h-full min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain">
             <CommandEmpty>{emptyText}</CommandEmpty>
             <CommandGroup>
               {options.map((option) => (

@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { queryClient } from '@/lib/queryClient'
 import type { User, Session } from '@supabase/supabase-js'
 
 interface AuthContextType {
@@ -28,9 +29,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session)
       setUser(session?.user ?? null)
+      if (event === 'SIGNED_IN' && session) {
+        void queryClient.invalidateQueries({ queryKey: ['transactions'] })
+        void queryClient.invalidateQueries({ queryKey: ['goals'] })
+        void queryClient.invalidateQueries({ queryKey: ['categories'] })
+        void queryClient.invalidateQueries({ queryKey: ['categories-with-subcategories'] })
+        void queryClient.invalidateQueries({ queryKey: ['pending-expenses'] })
+      }
     })
 
     return () => subscription.unsubscribe()

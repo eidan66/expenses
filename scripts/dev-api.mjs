@@ -14,16 +14,19 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, "..");
-for (const name of [".env", ".env.local", ".env.vercel"]) {
-  const p = join(root, name);
-  if (existsSync(p)) {
-    try {
-      const env = readFileSync(p, "utf8");
-      for (const line of env.split("\n")) {
-        const m = line.match(/^([^#=]+)=(.*)$/);
-        if (m) process.env[m[1].trim()] = m[2].trim().replace(/^["']|["']$/g, "");
-      }
-    } catch (_) {}
+const clientRoot = join(root, "client");
+for (const base of [root, clientRoot]) {
+  for (const name of [".env", ".env.local", ".env.vercel"]) {
+    const p = join(base, name);
+    if (existsSync(p)) {
+      try {
+        const env = readFileSync(p, "utf8");
+        for (const line of env.split("\n")) {
+          const m = line.match(/^([^#=]+)=(.*)$/);
+          if (m) process.env[m[1].trim()] = m[2].trim().replace(/^["']|["']$/g, "");
+        }
+      } catch (_) {}
+    }
   }
 }
 
@@ -227,6 +230,20 @@ const server = createServer(async (req, res) => {
     res.writeHead(500, { "Content-Type": "application/json" });
     return res.end(JSON.stringify({ error: e.message }));
   }
+  if (pathname === "/api/analytics-chat" && req.method === "POST") {
+    try {
+      const { streamAnalyticsChat } = await import("../api/analyticsChatStream.ts");
+      await streamAnalyticsChat(body, res);
+      return;
+    } catch (e) {
+      res.writeHead(500, { "Content-Type": "application/json" });
+      return res.end(
+        JSON.stringify({
+          error: e instanceof Error ? e.message : "Analytics chat failed",
+        })
+      );
+    }
+  }
   if (pathname === "/api/categories") {
     if (!isOpenClawAuthenticated(req.headers)) {
       res.writeHead(401, { "Content-Type": "application/json" });
@@ -256,6 +273,7 @@ const server = createServer(async (req, res) => {
 const port = 3000;
 server.listen(port, () => {
   console.log(`Dev API server: http://localhost:${port}`);
+  console.log("  POST /api/analytics-chat");
   console.log("  GET  /api/categories");
   console.log("  GET  /api/openclaw/payloads");
   console.log("  POST /api/openclaw/payloads");

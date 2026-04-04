@@ -130,8 +130,12 @@ export default function Goals() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-right">
             {goals.map((goal) => {
               const { icon: Icon, color, bg } = getGoalStyle(goal.name);
-              const target = safeParseInt(goal.target_amount || goal.targetAmount);
-              const current = safeParseInt(goal.current_amount || goal.currentAmount);
+              const g = goal as typeof goal & {
+                target_amount?: string;
+                current_amount?: string;
+              };
+              const target = safeParseInt(g.target_amount || g.targetAmount);
+              const current = safeParseInt(g.current_amount || g.currentAmount);
               const progress = target > 0 ? (current / target) * 100 : 0;
 
               return (

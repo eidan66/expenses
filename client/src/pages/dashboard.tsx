@@ -18,13 +18,15 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/searchable-select";
 import { Textarea } from "@/components/ui/textarea";
-import { useMemo, useState } from "react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useEffect, useMemo, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { type Transaction, type InsertTransaction, type Goal, type InsertGoal } from "@shared/schema";
-import { getTransactions, createTransaction, getGoals, createGoal, updateTransaction, deleteTransaction, updateGoal, deleteGoal, getCategories } from "@/lib/supabaseQueries";
+import { getTransactions, createTransaction, getGoals, createGoal, updateTransaction, deleteTransaction, deleteTransactionsByIds, updateGoal, deleteGoal, getCategories } from "@/lib/supabaseQueries";
 
 const MONTHS = [
   "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני", "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"
@@ -41,6 +43,8 @@ const currentYearStr = currentDate.getFullYear().toString();
 const currentMonthName = MONTHS[currentMonthIndex];
 
  export default function Dashboard() {
+  const { session, loading: authLoading } = useAuth();
+  const supabaseReady = !authLoading && !!session;
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [goalDialogOpen, setGoalDialogOpen] = useState(false);
@@ -70,17 +74,27 @@ const currentMonthName = MONTHS[currentMonthIndex];
   // Create a default goal for now if not exists, or fetch goals
   const { data: goals = [] } = useQuery<Goal[]>({ 
     queryKey: ['goals'],
-    queryFn: getGoals
+    queryFn: getGoals,
+    enabled: supabaseReady,
   });
   
   // Use the first goal or null
   const mainGoal = goals[0] || null;
-  const goalAmount = mainGoal ? safeParseInt(mainGoal.target_amount || mainGoal.targetAmount) : 0;
-  const currentSavingsTotal = mainGoal ? safeParseInt(mainGoal.current_amount || mainGoal.currentAmount) : 0;
+  const mainGoalRow = mainGoal as Goal & {
+    target_amount?: string;
+    current_amount?: string;
+  };
+  const goalAmount = mainGoal
+    ? safeParseInt(mainGoalRow.target_amount || mainGoalRow.targetAmount)
+    : 0;
+  const currentSavingsTotal = mainGoal
+    ? safeParseInt(mainGoalRow.current_amount || mainGoalRow.currentAmount)
+    : 0;
 
   const { data: transactions = [] } = useQuery<Transaction[]>({ 
     queryKey: ['transactions'],
-    queryFn: getTransactions
+    queryFn: getTransactions,
+    enabled: supabaseReady,
   });
 
   // Calculate financial metrics
@@ -159,6 +173,9 @@ const currentMonthName = MONTHS[currentMonthIndex];
   const [searchQuery, setSearchQuery] = useState("");
   const [activityFilterCategory, setActivityFilterCategory] = useState("");
   const [activityFilterSubcategory, setActivityFilterSubcategory] = useState("");
+  const [selectedTransactionIds, setSelectedTransactionIds] = useState(
+    () => new Set<string>()
+  );
   
   const [newTx, setNewTx] = useState({
     title: "",
@@ -271,6 +288,35 @@ const currentMonthName = MONTHS[currentMonthIndex];
     }
   });
 
+  const deleteTransactionsBulkMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const txs = queryClient.getQueryData<Transaction[]>(["transactions"]) || [];
+      const anySavings = ids.some(
+        (id) => txs.find((t) => t.id === id)?.category === "חיסכון"
+      );
+      await deleteTransactionsByIds(ids);
+      return { anySavings };
+    },
+    onSuccess: async (data, ids) => {
+      await queryClient.refetchQueries({ queryKey: ["transactions"] });
+      if (data.anySavings && mainGoal) {
+        await updateGoalFromSavingsTransactions();
+      }
+      setSelectedTransactionIds(new Set());
+      toast({
+        title: "העסקאות נמחקו",
+        description: `נמחקו ${ids.length} עסקאות מהמערכת`,
+      });
+    },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "שגיאה",
+        description: "אירעה שגיאה במחיקת העסקאות",
+      });
+    },
+  });
+
   const updateGoalMutation = useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: Partial<InsertGoal> }) => 
       updateGoal(id, updates),
@@ -346,46 +392,75 @@ const currentMonthName = MONTHS[currentMonthIndex];
     });
   };
 
-  const filteredTransactions = transactions.filter(t => {
-    const searchDigits = searchQuery.replace(/[^\d.-]/g, "");
-    const amountDigits = (t.amount || "").replace(/[^\d.-]/g, "");
-    const matchesSearch = t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         (t.notes || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         t.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         (t.subcategory || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         (searchDigits && amountDigits.includes(searchDigits));
-    const matchesMonth = t.month === selectedMonth;
-    const matchesYear = t.year === selectedYear;
-    const matchesActivityCategory =
-      !activityFilterCategory || t.category === activityFilterCategory;
-    const matchesActivitySubcategory =
-      !activityFilterCategory ||
-      !activityFilterSubcategory ||
-      (t.subcategory || "") === activityFilterSubcategory;
-    return (
-      matchesSearch &&
-      matchesMonth &&
-      matchesYear &&
-      matchesActivityCategory &&
-      matchesActivitySubcategory
-    );
-  });
+  const filteredTransactions = useMemo(
+    () =>
+      transactions.filter((t) => {
+        const searchDigits = searchQuery.replace(/[^\d.-]/g, "");
+        const amountDigits = (t.amount || "").replace(/[^\d.-]/g, "");
+        const matchesSearch =
+          t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (t.notes || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+          t.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (t.subcategory || "")
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase()) ||
+          Boolean(searchDigits && amountDigits.includes(searchDigits));
+        const matchesMonth = t.month === selectedMonth;
+        const matchesYear = t.year === selectedYear;
+        const matchesActivityCategory =
+          !activityFilterCategory || t.category === activityFilterCategory;
+        const matchesActivitySubcategory =
+          !activityFilterCategory ||
+          !activityFilterSubcategory ||
+          (t.subcategory || "") === activityFilterSubcategory;
+        return (
+          matchesSearch &&
+          matchesMonth &&
+          matchesYear &&
+          matchesActivityCategory &&
+          matchesActivitySubcategory
+        );
+      }),
+    [
+      transactions,
+      searchQuery,
+      selectedMonth,
+      selectedYear,
+      activityFilterCategory,
+      activityFilterSubcategory,
+    ]
+  );
 
-  const sortedTransactions = [...filteredTransactions].sort((a, b) => {
-    // Prefer created_at (when added) > updated_at > date (expense date)
-    const t = (x: typeof a) => x as { created_at?: string; updated_at?: string };
-    const aVal = t(a).created_at || t(a).updated_at || a.date;
-    const bVal = t(b).created_at || t(b).updated_at || b.date;
-    const aTime = new Date(aVal).getTime();
-    const bTime = new Date(bVal).getTime();
-    const cmp = Number.isNaN(aTime) || Number.isNaN(bTime)
-      ? aVal.localeCompare(bVal)
-      : aTime - bTime;
-    if (cmp !== 0) return activitySortOrder === "desc" ? -cmp : cmp;
-    return activitySortOrder === "desc"
-      ? b.id.localeCompare(a.id)
-      : a.id.localeCompare(b.id);
-  });
+  const sortedTransactions = useMemo(() => {
+    return [...filteredTransactions].sort((a, b) => {
+      const row = (x: typeof a) => x as { created_at?: string; updated_at?: string };
+      const aVal = row(a).created_at || row(a).updated_at || a.date;
+      const bVal = row(b).created_at || row(b).updated_at || b.date;
+      const aTime = new Date(aVal).getTime();
+      const bTime = new Date(bVal).getTime();
+      const cmp =
+        Number.isNaN(aTime) || Number.isNaN(bTime)
+          ? aVal.localeCompare(bVal)
+          : aTime - bTime;
+      if (cmp !== 0) return activitySortOrder === "desc" ? -cmp : cmp;
+      return activitySortOrder === "desc"
+        ? b.id.localeCompare(a.id)
+        : a.id.localeCompare(b.id);
+    });
+  }, [filteredTransactions, activitySortOrder]);
+
+  useEffect(() => {
+    const visible = new Set(sortedTransactions.map((t) => t.id));
+    setSelectedTransactionIds((prev) => {
+      let changed = false;
+      const next = new Set<string>();
+      for (const id of Array.from(prev)) {
+        if (visible.has(id)) next.add(id);
+        else changed = true;
+      }
+      return changed ? next : prev;
+    });
+  }, [sortedTransactions]);
 
   const isNewTxFormValid = Boolean(
     newTx.title.trim() &&
@@ -912,7 +987,8 @@ const currentMonthName = MONTHS[currentMonthIndex];
 
         <div className="flex flex-col lg:grid lg:grid-cols-3 gap-6">
           <Card className="lg:col-span-2 border-none shadow-sm overflow-hidden">
-            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <CardHeader className="flex flex-col gap-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <CardTitle className="font-heading text-lg flex items-center gap-2">
                 פעילות - {selectedMonth}
                 <Button
@@ -994,6 +1070,59 @@ const currentMonthName = MONTHS[currentMonthIndex];
                   <FileText className="absolute right-3 top-2 w-5 h-5 text-muted-foreground" />
                 </div>
               </div>
+              </div>
+              {selectedTransactionIds.size > 0 ? (
+                <div className="flex flex-wrap items-center justify-end gap-2 rounded-xl border bg-muted/50 p-2 text-sm">
+                  <span className="text-muted-foreground px-1">
+                    נבחרו {selectedTransactionIds.size}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 rounded-full text-xs"
+                    onClick={() =>
+                      setSelectedTransactionIds(
+                        new Set(sortedTransactions.map((t) => t.id))
+                      )
+                    }
+                    disabled={sortedTransactions.length === 0}
+                  >
+                    בחר הכל בתצוגה
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 rounded-full text-xs"
+                    onClick={() => setSelectedTransactionIds(new Set())}
+                  >
+                    נקה בחירה
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    className="h-8 rounded-full text-xs"
+                    disabled={deleteTransactionsBulkMutation.isPending}
+                    onClick={() => {
+                      const n = selectedTransactionIds.size;
+                      if (
+                        !confirm(
+                          `האם למחוק את ${n} העסקאות הנבחרות? פעולה זו אינה הפיכה.`
+                        )
+                      ) {
+                        return;
+                      }
+                      deleteTransactionsBulkMutation.mutate(
+                        Array.from(selectedTransactionIds)
+                      );
+                    }}
+                  >
+                    מחק נבחרים ({selectedTransactionIds.size})
+                  </Button>
+                </div>
+              ) : null}
             </CardHeader>
             <CardContent className="pb-24 lg:pb-0">
               <div className="space-y-1">
@@ -1006,23 +1135,43 @@ const currentMonthName = MONTHS[currentMonthIndex];
                   const amount = Math.abs(safeParseFloat(t.amount));
                   
                   return (
-                  <div key={t.id} className="flex items-center justify-between p-3 hover:bg-muted/50 rounded-xl transition-all group">
-                    <div className="flex items-center gap-4 flex-1">
+                  <div key={t.id} className="flex items-center justify-between gap-2 p-3 hover:bg-muted/50 rounded-xl transition-all group">
+                    <div className="flex min-w-0 flex-1 items-center gap-3">
+                      <div
+                        className="shrink-0"
+                        onClick={(e) => e.stopPropagation()}
+                        onPointerDown={(e) => e.stopPropagation()}
+                      >
+                        <Checkbox
+                          checked={selectedTransactionIds.has(t.id)}
+                          onCheckedChange={(v) => {
+                            setSelectedTransactionIds((prev) => {
+                              const next = new Set(prev);
+                              if (v === true) next.add(t.id);
+                              else next.delete(t.id);
+                              return next;
+                            });
+                          }}
+                          aria-label="בחר עסקה"
+                        />
+                      </div>
+                      <div className="flex min-w-0 flex-1 items-center gap-4">
                       <div className={cn(
-                        "p-2.5 rounded-xl",
+                        "p-2.5 rounded-xl shrink-0",
                         isSavings ? "bg-blue-50 text-blue-600" : isIncome ? "bg-emerald-50 text-emerald-600" : "bg-muted text-muted-foreground group-hover:bg-white"
                       )}>
                         {isSavings ? <PiggyBank className="w-5 h-5" /> : isIncome ? <ArrowUpRight className="w-5 h-5" /> : <ArrowDownRight className="w-5 h-5" />}
                       </div>
-                      <div className="text-right flex-1">
+                      <div className="text-right flex-1 min-w-0">
                         <p className="font-bold text-sm text-foreground">{isSavings ? "הפקדה" : t.title}</p>
                         <p className="text-[10px] text-muted-foreground font-medium tracking-normal">
                           {isSavings ? `חיסכון • ${t.subcategory || "יעד ארוך טווח"}` : `${t.category}${t.subcategory ? ` • ${t.subcategory}` : ""}`}
                         </p>
                         {t.notes && <p className="text-xs text-muted-foreground mt-1 line-clamp-1 italic">"{t.notes}"</p>}
                       </div>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex shrink-0 items-center gap-2">
                       <span className={cn(
                         "font-bold font-heading",
                         isSavings ? "text-blue-600" : isIncome ? "text-emerald-600" : "text-foreground"

@@ -75,6 +75,8 @@ VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
 ```
 
+For **Analytics → אנליטיקה חכמה** (AI chat), set `MOONSHOT_API_KEY` from the [international Moonshot console](https://platform.moonshot.ai/console/api-keys) in the **repository root** `.env` / `.env.local` **or** in `client/.env.local` — both are loaded in dev. **Important:** keys from [platform.moonshot.cn](https://platform.moonshot.cn) (China) and [platform.moonshot.ai](https://platform.moonshot.ai) are not interchangeable; a 401 `Invalid Authentication` on `api.moonshot.ai` usually means you need `MOONSHOT_BASE_URL=https://api.moonshot.cn/v1` for a `.cn` key, or create a key on the `.ai` console. **NVIDIA NIM (Kimi on integrate.api.nvidia.com)** is supported via `OPENAI_COMPATIBLE_BASE_URL=https://integrate.api.nvidia.com/v1` and `OPENAI_COMPATIBLE_API_KEY` (your `nvapi-…` key), or the aliases `NVIDIA_OPENAI_BASE_URL` / `INTEGRATE_API_BASE_URL` and `NVIDIA_API_KEY` / `NGC_API_KEY`. Use `ANALYTICS_AI_MODEL=moonshotai/kimi-k2.5`, and optionally `OPENAI_COMPATIBLE_EXTRA_BODY_JSON={"chat_template_kwargs":{"thinking":true}}` to match NVIDIA’s sample payload. Set `ANALYTICS_AI_PROVIDER=openai-compatible` to force it; if that variable is **unset** but both OpenAI-compat URL and key are set, the app **prefers OpenAI-compatible** over Moonshot so an old `MOONSHOT_API_KEY` does not override NVIDIA. On Vercel, set the same env vars. Locally, **`yarn dev`** serves `/api/analytics-chat`; or use **`yarn dev:all`**. See `client/.env.local.example`.
+
 ### 5. Start Development Server
 
 ```bash
