@@ -16,8 +16,9 @@ import {
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/searchable-select";
 import { Textarea } from "@/components/ui/textarea";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -30,6 +31,9 @@ const MONTHS = [
 ];
 
 const YEARS = ["2024", "2025", "2026", "2027", "2028", "2029", "2030"];
+
+const ACTIVITY_FILTER_ALL_CATEGORIES = "__all_categories__";
+const ACTIVITY_FILTER_ALL_SUBCATEGORIES = "__all_subcategories__";
 
 const currentDate = new Date();
 const currentMonthIndex = currentDate.getMonth();
@@ -57,7 +61,12 @@ const currentMonthName = MONTHS[currentMonthIndex];
     queryKey: ['categories'],
     queryFn: getCategories
   });
-  
+
+  const categoryComboboxOptions = useMemo(
+    () => Object.keys(categories).map((name) => ({ value: name, label: name })),
+    [categories]
+  );
+
   // Create a default goal for now if not exists, or fetch goals
   const { data: goals = [] } = useQuery<Goal[]>({ 
     queryKey: ['goals'],
@@ -148,7 +157,8 @@ const currentMonthName = MONTHS[currentMonthIndex];
   };
   
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [activityFilterCategory, setActivityFilterCategory] = useState("");
+  const [activityFilterSubcategory, setActivityFilterSubcategory] = useState("");
   
   const [newTx, setNewTx] = useState({
     title: "",
@@ -177,7 +187,6 @@ const currentMonthName = MONTHS[currentMonthIndex];
       });
       setOpen(false);
       setNewTx({ title: "", amount: "", category: "", subcategory: "", notes: "", month: currentMonthName, year: currentYearStr });
-      setSelectedCategory("");
     },
     onError: () => {
       toast({
@@ -346,8 +355,20 @@ const currentMonthName = MONTHS[currentMonthIndex];
                          (t.subcategory || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
                          (searchDigits && amountDigits.includes(searchDigits));
     const matchesMonth = t.month === selectedMonth;
-    const matchesYear = t.year === selectedYear; // New filter
-    return matchesSearch && matchesMonth && matchesYear;
+    const matchesYear = t.year === selectedYear;
+    const matchesActivityCategory =
+      !activityFilterCategory || t.category === activityFilterCategory;
+    const matchesActivitySubcategory =
+      !activityFilterCategory ||
+      !activityFilterSubcategory ||
+      (t.subcategory || "") === activityFilterSubcategory;
+    return (
+      matchesSearch &&
+      matchesMonth &&
+      matchesYear &&
+      matchesActivityCategory &&
+      matchesActivitySubcategory
+    );
   });
 
   const sortedTransactions = [...filteredTransactions].sort((a, b) => {
@@ -469,42 +490,34 @@ const currentMonthName = MONTHS[currentMonthIndex];
                     </div>
                     <div className="space-y-2 text-right">
                       <Label>קטגוריה *</Label>
-                      <Select 
+                      <SearchableSelect
                         value={newTx.category}
-                        onValueChange={(val) => {
-                          setSelectedCategory(val);
-                          setNewTx({...newTx, category: val, subcategory: ""});
-                        }}
-                      >
-                        <SelectTrigger className="text-right">
-                          <SelectValue placeholder="בחר קטגוריה" />
-                        </SelectTrigger>
-                        <SelectContent dir="rtl">
-                          {Object.keys(categories).map(cat => (
-                            <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        onValueChange={(val) =>
+                          setNewTx({ ...newTx, category: val, subcategory: "" })
+                        }
+                        options={categoryComboboxOptions}
+                        placeholder="בחר קטגוריה"
+                        emptyText="לא נמצאו תוצאות"
+                      />
                     </div>
                   </div>
 
-                  {selectedCategory && categories[selectedCategory]?.length > 0 && (
+                  {newTx.category &&
+                    categories[newTx.category]?.length > 0 && (
                     <div className="grid grid-cols-1 gap-4 animate-in fade-in slide-in-from-top-2 duration-300 text-right mb-4">
                       <div className="space-y-2">
                         <Label>תת-קטגוריה *</Label>
-                        <Select 
+                        <SearchableSelect
                           value={newTx.subcategory}
-                          onValueChange={(val) => setNewTx({...newTx, subcategory: val})}
-                        >
-                          <SelectTrigger className="text-right">
-                            <SelectValue placeholder="בחר" />
-                          </SelectTrigger>
-                          <SelectContent dir="rtl">
-                            {categories[selectedCategory]?.map(sub => (
-                              <SelectItem key={sub} value={sub}>{sub}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          onValueChange={(val) =>
+                            setNewTx({ ...newTx, subcategory: val })
+                          }
+                          options={(categories[newTx.category] ?? []).map(
+                            (sub) => ({ value: sub, label: sub })
+                          )}
+                          placeholder="בחר תת-קטגוריה"
+                          emptyText="לא נמצאו תוצאות"
+                        />
                       </div>
                     </div>
                   )}
@@ -600,39 +613,44 @@ const currentMonthName = MONTHS[currentMonthIndex];
 
                   <div className="space-y-2">
                     <Label>קטגוריה *</Label>
-                    <Select 
+                    <SearchableSelect
                       value={editingTransaction?.category || ""}
-                      onValueChange={(val) => {
-                        setEditingTransaction(editingTransaction ? {...editingTransaction, category: val, subcategory: ""} : null);
-                      }}
-                    >
-                      <SelectTrigger className="text-right">
-                        <SelectValue placeholder="בחרו קטגוריה" />
-                      </SelectTrigger>
-                      <SelectContent dir="rtl">
-                        {Object.keys(categories).map(cat => (
-                          <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      onValueChange={(val) =>
+                        setEditingTransaction(
+                          editingTransaction
+                            ? {
+                                ...editingTransaction,
+                                category: val,
+                                subcategory: "",
+                              }
+                            : null
+                        )
+                      }
+                      options={categoryComboboxOptions}
+                      placeholder="בחרו קטגוריה"
+                      emptyText="לא נמצאו תוצאות"
+                    />
                   </div>
 
-                  {editingTransaction?.category && categories[editingTransaction.category] && categories[editingTransaction.category].length > 0 && (
+                  {editingTransaction?.category &&
+                    categories[editingTransaction.category]?.length > 0 && (
                     <div className="space-y-2">
                       <Label>תת-קטגוריה *</Label>
-                      <Select 
+                      <SearchableSelect
                         value={editingTransaction?.subcategory || ""}
-                        onValueChange={(val) => setEditingTransaction(editingTransaction ? {...editingTransaction, subcategory: val} : null)}
-                      >
-                        <SelectTrigger className="text-right">
-                          <SelectValue placeholder="בחרו תת-קטגוריה" />
-                        </SelectTrigger>
-                        <SelectContent dir="rtl">
-                          {categories[editingTransaction.category].map((sub: string) => (
-                            <SelectItem key={sub} value={sub}>{sub}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        onValueChange={(val) =>
+                          setEditingTransaction(
+                            editingTransaction
+                              ? { ...editingTransaction, subcategory: val }
+                              : null
+                          )
+                        }
+                        options={(categories[editingTransaction.category] ?? []).map(
+                          (sub: string) => ({ value: sub, label: sub })
+                        )}
+                        placeholder="בחרו תת-קטגוריה"
+                        emptyText="לא נמצאו תוצאות"
+                      />
                     </div>
                   )}
 
@@ -894,7 +912,7 @@ const currentMonthName = MONTHS[currentMonthIndex];
 
         <div className="flex flex-col lg:grid lg:grid-cols-3 gap-6">
           <Card className="lg:col-span-2 border-none shadow-sm overflow-hidden">
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <CardTitle className="font-heading text-lg flex items-center gap-2">
                 פעילות - {selectedMonth}
                 <Button
@@ -911,14 +929,70 @@ const currentMonthName = MONTHS[currentMonthIndex];
                   )}
                 </Button>
               </CardTitle>
-              <div className="relative w-64">
-                <Input 
-                  placeholder="חפשו לפי הערות, פריטים או סכום..." 
-                  className="rounded-full h-9 text-sm pr-10 text-right"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-                <FileText className="absolute right-3 top-2 w-5 h-5 text-muted-foreground" />
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end lg:max-w-none lg:flex-1">
+                <Select
+                  value={
+                    activityFilterCategory || ACTIVITY_FILTER_ALL_CATEGORIES
+                  }
+                  onValueChange={(val) => {
+                    const next =
+                      val === ACTIVITY_FILTER_ALL_CATEGORIES ? "" : val;
+                    setActivityFilterCategory(next);
+                    setActivityFilterSubcategory("");
+                  }}
+                >
+                  <SelectTrigger className="h-9 w-full rounded-full text-right sm:w-44">
+                    <SelectValue placeholder="קטגוריה" />
+                  </SelectTrigger>
+                  <SelectContent dir="rtl">
+                    <SelectItem value={ACTIVITY_FILTER_ALL_CATEGORIES}>
+                      כל הקטגוריות
+                    </SelectItem>
+                    {Object.keys(categories).map((cat) => (
+                      <SelectItem key={cat} value={cat}>
+                        {cat}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {activityFilterCategory ? (
+                  <Select
+                    value={
+                      activityFilterSubcategory ||
+                      ACTIVITY_FILTER_ALL_SUBCATEGORIES
+                    }
+                    onValueChange={(val) =>
+                      setActivityFilterSubcategory(
+                        val === ACTIVITY_FILTER_ALL_SUBCATEGORIES ? "" : val
+                      )
+                    }
+                  >
+                    <SelectTrigger className="h-9 w-full rounded-full text-right sm:w-44">
+                      <SelectValue placeholder="תת-קטגוריה" />
+                    </SelectTrigger>
+                    <SelectContent dir="rtl">
+                      <SelectItem value={ACTIVITY_FILTER_ALL_SUBCATEGORIES}>
+                        כל התת-קטגוריות
+                      </SelectItem>
+                      {(categories[activityFilterCategory] ?? []).map(
+                        (sub) => (
+                          <SelectItem key={sub} value={sub}>
+                            {sub}
+                          </SelectItem>
+                        )
+                      )}
+                    </SelectContent>
+                  </Select>
+                ) : null}
+                <div className="relative w-full sm:w-64">
+                  <Input
+                    placeholder="חפשו לפי הערות, פריטים או סכום..."
+                    className="rounded-full h-9 text-sm pr-10 text-right"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                  <FileText className="absolute right-3 top-2 w-5 h-5 text-muted-foreground" />
+                </div>
               </div>
             </CardHeader>
             <CardContent className="pb-24 lg:pb-0">
