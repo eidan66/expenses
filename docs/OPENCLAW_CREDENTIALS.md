@@ -43,6 +43,7 @@ Use these values when configuring OpenClaw to call the NestEgg expense API.
 
 - `GET /api/openclaw/ping` — health check (no auth, no Supabase). Use to verify the API is reachable.
 - `GET /api/categories` — fetch categories and subcategories
+- `GET /api/openclaw/status` — read-only snapshot (pending counts, recent pendings, recent transactions, goals) for the OpenClaw user
 - `POST /api/openclaw/payloads` — submit expense payload
 
-Categories and payloads require the `Authorization: Bearer <token>` header when `OPENCLAW_API_TOKEN` is set.
+Categories, status, and payloads require the `Authorization: Bearer <token>` header when `OPENCLAW_API_TOKEN` is set.

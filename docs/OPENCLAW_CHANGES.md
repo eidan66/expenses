@@ -6,7 +6,11 @@ This document summarizes recent changes to the NestEgg expense API. Use it when 
 
 ## Authentication
 
-- When `OPENCLAW_API_TOKEN` is set, include `Authorization: Bearer <token>` on all requests to `GET /api/categories` and `POST /api/openclaw/payloads`.
+- When `OPENCLAW_API_TOKEN` is set, include `Authorization: Bearer <token>` on all requests to `GET /api/categories`, `GET /api/openclaw/status`, and `POST /api/openclaw/payloads`.
+
+## Read-only status
+
+- **`GET /api/openclaw/status`** — Scoped snapshot: pending expense counts and recent rows, recent transactions, goals. See [OPENCLAW_INTEGRATION.md](OPENCLAW_INTEGRATION.md) §2.2.
 - See [OPENCLAW_CREDENTIALS.md](OPENCLAW_CREDENTIALS.md) for setup.
 
 ---

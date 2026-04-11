@@ -76,7 +76,41 @@ async function main() {
   });
   if (pingOk) passed++; else failed++;
 
-  // 2. GET categories
+  // 2. GET status (read-only DB snapshot)
+  let statusOk = false;
+  try {
+    const statusRes = await fetchJson(`${BASE_URL}/api/openclaw/status`, {
+      headers: { Authorization: `Bearer ${API_TOKEN}` },
+    });
+    statusOk =
+      statusRes.ok &&
+      statusRes.status === 200 &&
+      statusRes.body &&
+      typeof statusRes.body === "object" &&
+      statusRes.body.ok === true &&
+      statusRes.body.readonly === true;
+    console.log(statusOk ? "✓" : "✗", "GET /api/openclaw/status (with Bearer)");
+    if (!statusOk) {
+      console.log("  Status:", statusRes.status);
+      console.log(
+        "  Body:",
+        typeof statusRes.body === "string"
+          ? statusRes.body.slice(0, 400)
+          : JSON.stringify(statusRes.body, null, 2).slice(0, 500)
+      );
+      if (statusRes.status === 404) {
+        console.log(
+          "  Hint: Route not deployed yet. Push/deploy this repo to Vercel so api/openclaw/status.ts is live."
+        );
+      }
+    }
+  } catch (e) {
+    console.log("✗", "GET /api/openclaw/status (with Bearer)");
+    console.log("  Error:", e.message);
+  }
+  if (statusOk) passed++; else failed++;
+
+  // 3. GET categories
   const catOk = await runTest("GET /api/categories (with Bearer)", async () => {
     return fetchJson(`${BASE_URL}/api/categories`, {
       headers: { Authorization: `Bearer ${API_TOKEN}` },
@@ -84,7 +118,7 @@ async function main() {
   });
   if (catOk) passed++; else failed++;
 
-  // 3. POST payloads - flat body (direct fields)
+  // 4. POST payloads - flat body (direct fields)
   const postFlatOk = await runTest("POST /api/openclaw/payloads (flat body)", async () => {
     return fetchJson(`${BASE_URL}/api/openclaw/payloads`, {
       method: "POST",
@@ -94,7 +128,7 @@ async function main() {
   });
   if (postFlatOk) passed++; else failed++;
 
-  // 4. POST payloads - nested body.payload (OpenClaw format)
+  // 5. POST payloads - nested body.payload (OpenClaw format)
   const postNestedOk = await runTest("POST /api/openclaw/payloads (nested payload)", async () => {
     return fetchJson(`${BASE_URL}/api/openclaw/payloads`, {
       method: "POST",
@@ -104,7 +138,7 @@ async function main() {
   });
   if (postNestedOk) passed++; else failed++;
 
-  // 5. GET payloads
+  // 6. GET payloads
   const getPayloadsOk = await runTest("GET /api/openclaw/payloads", async () => {
     return fetchJson(`${BASE_URL}/api/openclaw/payloads`, {
       headers: { Authorization: `Bearer ${API_TOKEN}` },

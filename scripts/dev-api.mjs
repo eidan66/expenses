@@ -61,6 +61,94 @@ function isOpenClawAuthenticated(headers) {
   return authStr.slice(7) === token;
 }
 
+async function handleOpenClawStatus(supabase, req, res) {
+  const userId = process.env.OPENCLAW_USER_ID ?? DEFAULT_USER_ID;
+  const url = new URL(req.url || "", "http://localhost");
+  const pendingLimit = Math.min(
+    Math.max(parseInt(url.searchParams.get("pending_limit") || "20", 10) || 20, 1),
+    50
+  );
+  const transactionLimit = Math.min(
+    Math.max(parseInt(url.searchParams.get("transaction_limit") || "15", 10) || 15, 1),
+    50
+  );
+
+  const [pendingCountRes, approvedCountRes, declinedCountRes, pendingRecentRes, txRes, goalsRes] =
+    await Promise.all([
+      supabase
+        .from("pending_expenses")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .eq("status", "pending"),
+      supabase
+        .from("pending_expenses")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .eq("status", "approved"),
+      supabase
+        .from("pending_expenses")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .eq("status", "declined"),
+      supabase
+        .from("pending_expenses")
+        .select(
+          "id, title, amount, category, subcategory, date, month, year, notes, status, created_at"
+        )
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(pendingLimit),
+      supabase
+        .from("transactions")
+        .select("id, title, amount, category, subcategory, date, month, year, notes")
+        .eq("user_id", userId)
+        .order("date", { ascending: false })
+        .limit(transactionLimit),
+      supabase
+        .from("goals")
+        .select("id, name, target_amount, current_amount")
+        .eq("user_id", userId)
+        .order("name"),
+    ]);
+
+  const firstError =
+    pendingCountRes.error ||
+    approvedCountRes.error ||
+    declinedCountRes.error ||
+    pendingRecentRes.error ||
+    txRes.error ||
+    goalsRes.error;
+
+  if (firstError) {
+    res.writeHead(500, { "Content-Type": "application/json" });
+    return res.end(JSON.stringify({ error: firstError.message }));
+  }
+
+  res.writeHead(200, { "Content-Type": "application/json" });
+  res.end(
+    JSON.stringify({
+      ok: true,
+      generated_at: new Date().toISOString(),
+      scope: { user_id: userId },
+      readonly: true,
+      pending_expenses: {
+        counts: {
+          pending: pendingCountRes.count ?? 0,
+          approved: approvedCountRes.count ?? 0,
+          declined: declinedCountRes.count ?? 0,
+        },
+        recent: pendingRecentRes.data ?? [],
+      },
+      transactions: { recent: txRes.data ?? [] },
+      goals: { items: goalsRes.data ?? [] },
+      hints: {
+        categories: "GET /api/categories — full category and subcategory list",
+        submit_pending: "POST /api/openclaw/payloads — creates a new pending row (OCR / expenses agent)",
+      },
+    })
+  );
+}
+
 async function handleCategories(supabase, res) {
   const { data: categories, error: catError } = await supabase
     .from("categories")
@@ -255,6 +343,13 @@ const server = createServer(async (req, res) => {
     res.writeHead(200, { "Content-Type": "application/json" });
     return res.end(JSON.stringify({ ok: true, ts: new Date().toISOString() }));
   }
+  if (pathname === "/api/openclaw/status" && req.method === "GET") {
+    if (!isOpenClawAuthenticated(req.headers)) {
+      res.writeHead(401, { "Content-Type": "application/json" });
+      return res.end(JSON.stringify({ error: "Unauthorized: provide Authorization: Bearer <token>" }));
+    }
+    return handleOpenClawStatus(supabase, req, res);
+  }
   if (pathname === "/api/openclaw/payloads") {
     if (!isOpenClawAuthenticated(req.headers)) {
       res.writeHead(401, { "Content-Type": "application/json" });
@@ -275,6 +370,7 @@ server.listen(port, () => {
   console.log(`Dev API server: http://localhost:${port}`);
   console.log("  POST /api/analytics-chat");
   console.log("  GET  /api/categories");
+  console.log("  GET  /api/openclaw/status");
   console.log("  GET  /api/openclaw/payloads");
   console.log("  POST /api/openclaw/payloads");
   console.log("  POST /api/openclaw/payloads/:id (body: { action: 'approve'|'decline' })");

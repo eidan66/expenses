@@ -2,6 +2,8 @@
 
 This document describes OpenClaw’s role in the NestEgg expense automation flow. Use it as the main reference for implementation.
 
+**OpenClaw agent markdown packs** (AGENTS, SOUL, TOOLS, IDENTITY, USER, HEARTBEAT, MEMORY) for **expenses**, **OCR**, **bank** (router), and **income** live under [`openclaw/agents/`](../openclaw/agents/) (`expenses/`, `ocr/`, `bank/`, `income/`)—copy or sync into your OpenClaw workspace as needed.
+
 ---
 
 ## 1. Your Job
@@ -60,7 +62,38 @@ Authorization: Bearer <token>
 
 ---
 
-### 2.2 POST /api/openclaw/payloads
+### 2.2 GET /api/openclaw/status
+
+**Purpose:** Read-only snapshot of NestEgg data for the OpenClaw user (`OPENCLAW_USER_ID` or server default). Use this to “ping” current state: pending expense counts, recent pending rows, recent ledger transactions, and savings goals. No direct SQL — only this curated JSON.
+
+**Request:**
+```
+GET /api/openclaw/status
+Authorization: Bearer <token>
+```
+
+**Optional query parameters:**
+
+| Parameter | Default | Max | Description |
+|-----------|---------|-----|-------------|
+| `pending_limit` | 20 | 50 | Recent `pending_expenses` rows (all statuses), newest first |
+| `transaction_limit` | 15 | 50 | Recent `transactions` rows by `date` |
+
+**Response (shape):**
+
+- `readonly: true`
+- `scope.user_id` — which household user the data is scoped to
+- `pending_expenses.counts` — `pending`, `approved`, `declined` counts
+- `pending_expenses.recent` — slice of pending rows (`raw_payload` is omitted here to keep responses small; use the app or full row sources if needed)
+- `transactions.recent` — recent booked transactions
+- `goals.items` — goals for that user
+- `hints` — pointers to `GET /api/categories` and `POST /api/openclaw/payloads`
+
+**When to call:** At session start, before/after submitting payloads, or on a heartbeat to refresh context.
+
+---
+
+### 2.3 POST /api/openclaw/payloads
 
 **Purpose:** Submit an expense for human approval.
 
@@ -231,7 +264,7 @@ Authorization: Bearer <token>
 | 201 | Created | Payload stored; human will review |
 | 400 | Bad request | Check required fields and format |
 | 401 | Unauthorized | Provide `Authorization: Bearer <token>` (see OPENCLAW_CREDENTIALS.md) |
-| 405 | Method not allowed | Use GET for categories, POST for payloads |
+| 405 | Method not allowed | Use GET for categories and status, POST for payloads |
 | 500 | Server error | Retry later or report |
 
 On 400, inspect the `error` field for details (e.g. missing fields).
@@ -242,6 +275,7 @@ On 400, inspect the `error` field for details (e.g. missing fields).
 
 | Step | Action |
 |------|--------|
+| 0 (optional) | `GET /api/openclaw/status` for read-only context |
 | 1 | Scan invoice/receipt (OCR) |
 | 2 | Extract title, amount, date, notes |
 | 3 | `GET /api/categories` |

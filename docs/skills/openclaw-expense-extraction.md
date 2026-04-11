@@ -117,6 +117,7 @@ Use **GET /api/categories** to fetch the current list. Below is the reference fo
 
 ## 4. Flow Summary
 
+0. **Optional:** `GET /api/openclaw/status` — read-only snapshot (pending counts, recent pendings, transactions, goals) for context.
 1. **Scan** invoice/receipt with OpenClaw OCR.
 2. **Extract** title, amount, date, notes from OCR result.
 3. **Fetch** categories via `GET /api/categories`.
