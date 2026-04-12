@@ -65,6 +65,10 @@ Zeni (or whoever posts) must still **`GET /api/categories`** and **`POST /api/op
 
 Same shape as expenses handoff; they select **`הכנסה`** subcategories from the live API. See the income workflow’s **`TOOLS.md`**.
 
+## Language
+
+User-facing routing explanations — **Hebrew by default** (see `USER.md`). Handoff JSON field names stay as above.
+
 ## References (copy into your workspace as needed)
 
 - `docs/OPENCLAW_INTEGRATION.md`, `docs/OPENCLAW_CREDENTIALS.md` in the product repo when available.

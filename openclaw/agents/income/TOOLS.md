@@ -54,6 +54,10 @@ Creates a **pending** row (same handler as expenses).
 
 List pending payloads for debugging or confirmation.
 
+## Language
+
+User-facing status text and post-submit reminders — **Hebrew by default** (see `USER.md`). JSON/API field names unchanged.
+
 ## In-repo documentation
 
 - `docs/OPENCLAW_INTEGRATION.md`

@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
+import { deriveHebrewMonthYearFromDate } from "../../../shared/hebrewMonthYear";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
@@ -64,6 +65,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const finalAmount =
       isExpenseCategory && amountNum > 0 ? (-amountNum).toString() : pending.amount;
 
+    const { month: ledgerMonth, year: ledgerYear } = deriveHebrewMonthYearFromDate(
+      String(pending.date)
+    );
+
     const { error: insertError } = await supabase.from("transactions").insert({
       user_id: pending.user_id,
       title: pending.title,
@@ -71,8 +76,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       category: pending.category,
       subcategory: pending.subcategory ?? null,
       date: pending.date,
-      month: pending.month,
-      year: pending.year,
+      month: ledgerMonth,
+      year: ledgerYear,
       notes: pending.notes ?? null,
     });
 
@@ -82,7 +87,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const { error: updateError } = await supabase
       .from("pending_expenses")
-      .update({ status: "approved" })
+      .update({ status: "approved", month: ledgerMonth, year: ledgerYear })
       .eq("id", id);
 
     if (updateError) {

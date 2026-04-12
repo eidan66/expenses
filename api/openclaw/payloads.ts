@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
+import { deriveHebrewMonthYearFromDate } from "../../shared/hebrewMonthYear";
 
 function isOpenClawAuthenticated(req: { headers?: Record<string, string | string[] | undefined> }): boolean {
   const token = process.env.OPENCLAW_API_TOKEN;
@@ -10,27 +11,7 @@ function isOpenClawAuthenticated(req: { headers?: Record<string, string | string
   return authStr.slice(7).trim() === token.trim();
 }
 
-const HEBREW_MONTHS = [
-  "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",
-  "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"
-];
-
 const DEFAULT_USER_ID = "c0d1a144-90cc-449f-a1ae-a1709cb534ca";
-
-function deriveMonthYear(dateStr: string): { month: string; year: string } {
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) {
-    const now = new Date();
-    return {
-      month: HEBREW_MONTHS[now.getMonth()],
-      year: now.getFullYear().toString(),
-    };
-  }
-  return {
-    month: HEBREW_MONTHS[d.getMonth()],
-    year: d.getFullYear().toString(),
-  };
-}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
@@ -82,8 +63,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const category = (payload?.category ?? body?.category) as string;
       const subcategory = (payload?.subcategory ?? body?.subcategory) as string | undefined;
       const date = (payload?.date ?? body?.date) as string;
-      const month = (payload?.month ?? body?.month) as string | undefined;
-      const year = (payload?.year ?? body?.year) as string | undefined;
       const notes = (payload?.notes ?? body?.notes) as string | undefined;
       let rawPayload = (payload?.raw_payload ?? body?.raw_payload) as Record<string, unknown> | undefined;
       // Sanitize: ensure JSON-serializable (avoids circular refs, BigInt, etc.)
@@ -103,13 +82,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
       }
 
-      let finalMonth = month;
-      let finalYear = year;
-      if (!finalMonth || !finalYear) {
-        const derived = deriveMonthYear(date);
-        finalMonth = finalMonth ?? derived.month;
-        finalYear = finalYear ?? derived.year;
-      }
+      // Always bucket by `date` so dashboard month filters match the real calendar
+      // (agents sometimes send month/year that disagree with date).
+      const { month: finalMonth, year: finalYear } =
+        deriveHebrewMonthYearFromDate(date);
 
       const { data, error } = await supabase
         .from("pending_expenses")

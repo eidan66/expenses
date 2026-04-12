@@ -79,6 +79,15 @@ Creates a **pending** expense.
 
 Lists pending payloads for the configured user (requires auth when token is set). Useful for debugging or confirming submissions.
 
+## Language
+
+User-facing text (status summaries, reminders after `POST`, questions to the household) should be **in Hebrew** unless the user is clearly messaging in English. API/JSON field names stay as documented.
+
+## User-facing reminder
+
+After a successful `POST /api/openclaw/payloads`, remind the user **in Hebrew** that the row is pending, e.g.:  
+«ההוצאה נשלחה כ**ממתינה לאישור** — צריך לאשר ב־NestEgg לפני שהיא נספרת בספרים.»
+
 ## In-repo documentation
 
 - `docs/OPENCLAW_INTEGRATION.md`

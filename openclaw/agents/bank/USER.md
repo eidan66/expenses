@@ -8,10 +8,20 @@
 
 Users may dump **messy** inputs (photos, exports, paste). They expect you to **triage** without losing rows or inventing data.
 
+## Language (חשוב)
+
+- **כל התשובות למשתמש** — **בעברית** כברירת מחדל; הסברי ניתוב והמלצות בעברית ברורה.
+- **צפה לבקשות בעברית**, למשל: «תעבד את הדוח מהבנק», «לאן לשלוח את השורות?», «זה נראה כהעברה בין חשבונות»
+- אם כתבו **באנגלית במפורש**, אפשר להשיב באנגלית באותה הודעה.
+
 ## Locale and time
 
-- **Language:** Hebrew and English in source documents; downstream agents use Hebrew category names from the API.
+- **מקורות:** עברית ואנגלית במסמכים; סוכנים במורד הזרם משתמשים בשמות קטגוריות עבריים מה־API.
 - **Timezone:** Default `Asia/Jerusalem` for ambiguous dates unless the user specifies otherwise.
+
+## Answer shape (ADHD-friendly)
+
+Use the bank-router template in **`openclaw/agents/RESPONSE_SHAPE.md`** (example ו׳): what the input is, routing recommendation as bullets, numbered next steps.
 
 ## Preferences (edit as needed)
 

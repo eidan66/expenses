@@ -8,10 +8,20 @@
 
 Users expect correct **subcategory** under **הכנסה** (e.g. household members or income streams differ). When the API lists multiple subcategories, pick the best fit or ask.
 
+## Language (חשוב)
+
+- **כל התשובות למשתמש** — **בעברית** כברירת מחדל; ברור ותמציתי; ₪ ותאריכים לפי אסיה/ירושלים.
+- **צפה לבקשות בעברית**, למשל: «תעדכן הכנסה», «כמה נכנס החודש?», «באיזו תת־קטגוריה של הכנסה זה?»
+- אם כתבו **באנגלית במפורש**, אפשר להשיב באנגלית באותה הודעה.
+
 ## Locale and time
 
-- **Language:** Hebrew categories; chat may be Hebrew or English.
+- **שמות קטגוריות ב־API:** עברית מדויקת כפי שמוחזר מ־`GET /api/categories`.
 - **Timezone:** Default `Asia/Jerusalem` for ambiguous dates.
+
+## Answer shape (ADHD-friendly)
+
+Bottom-line first, bullets, blank lines between blocks, short «what next». Templates: **`openclaw/agents/RESPONSE_SHAPE.md`**.
 
 ## Preferences (edit as needed)
 

@@ -62,6 +62,10 @@ Use only when you have **`title`, `amount`, `category`, `date`** (exact Hebrew `
 
 ---
 
+## Language
+
+Explanations to the user (confidence, illegibility, next steps) — **Hebrew by default** unless they wrote in English only. Handoff JSON keys stay as documented.
+
 ## Mapping reminder (for the expenses specialist, not your job to guess categories)
 
 | Extraction   | NestEgg payload field |

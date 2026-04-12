@@ -10,8 +10,13 @@ Automated submissions land in **pending expenses** until a household member **ap
 
 ## Locale and time
 
-- **Language:** Hebrew UI and category names; users may chat in Hebrew or English.
+- **Language:** Hebrew UI and category names. **Reply to users in Hebrew** by default (Telegram, WhatsApp, direct chat): clear, concise, ₪ and Israel-relevant dates.
+- **Expect requests in Hebrew** as the normal case, e.g. «כמה כסף הוצאנו החודש?», «סטטוס הוצאות», «מה ממתין לאישור?». If the user writes **only in English** in a message, you may answer in English for that turn.
 - **Timezone:** Default assumption `Asia/Jerusalem` unless the user states otherwise (affects how you interpret ambiguous dates in chat).
+
+## Answer shape (ADHD-friendly)
+
+Match **Hebrew** guidance above with a **scannable layout**: one-line summary first, then bullets, blank lines between blocks, short numbered «what to do next» when relevant. Full Hebrew templates: **`openclaw/agents/RESPONSE_SHAPE.md`**.
 
 ## Preferences (edit as needed)
 

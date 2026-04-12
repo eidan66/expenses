@@ -7,6 +7,7 @@
 import { createServer } from "http";
 import { parse as parseUrl } from "url";
 import { createClient } from "@supabase/supabase-js";
+import { deriveHebrewMonthYearFromDate } from "../shared/hebrewMonthYear.ts";
 
 // Load .env and .env.local from project root
 import { readFileSync, existsSync } from "fs";
@@ -30,10 +31,6 @@ for (const base of [root, clientRoot]) {
   }
 }
 
-const HEBREW_MONTHS = [
-  "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",
-  "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"
-];
 const DEFAULT_USER_ID = "c0d1a144-90cc-449f-a1ae-a1709cb534ca";
 
 function getSupabase() {
@@ -41,15 +38,6 @@ function getSupabase() {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) throw new Error("Missing SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY. Get it from Supabase Dashboard > Settings > API.");
   return createClient(url, key);
-}
-
-function deriveMonthYear(dateStr) {
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) {
-    const now = new Date();
-    return { month: HEBREW_MONTHS[now.getMonth()], year: String(now.getFullYear()) };
-  }
-  return { month: HEBREW_MONTHS[d.getMonth()], year: String(d.getFullYear()) };
 }
 
 function isOpenClawAuthenticated(headers) {
@@ -190,7 +178,7 @@ async function handlePayloads(supabase, method, body, res) {
   if (method === "POST") {
     const raw = body || {};
     const payload = raw.payload || raw;
-    let { title, amount, category, subcategory, date, month, year, notes, raw_payload } = {
+    let { title, amount, category, subcategory, date, notes, raw_payload } = {
       ...raw,
       ...payload,
     };
@@ -207,13 +195,7 @@ async function handlePayloads(supabase, method, body, res) {
       res.writeHead(400, { "Content-Type": "application/json" });
       return res.end(JSON.stringify({ error: "Missing required fields: title, amount, category, date" }));
     }
-    let finalMonth = month;
-    let finalYear = year;
-    if (!finalMonth || !finalYear) {
-      const d = deriveMonthYear(date);
-      finalMonth = finalMonth ?? d.month;
-      finalYear = finalYear ?? d.year;
-    }
+    const { month: finalMonth, year: finalYear } = deriveHebrewMonthYearFromDate(String(date));
     const { data, error } = await supabase
       .from("pending_expenses")
       .insert({
@@ -274,6 +256,9 @@ async function handlePayloadById(supabase, id, method, body, res) {
   const isExpenseCategory = pending.category !== "הכנסה" && pending.category !== "חיסכון";
   const amountNum = parseFloat(String(pending.amount));
   const finalAmount = isExpenseCategory && amountNum > 0 ? String(-amountNum) : pending.amount;
+  const { month: ledgerMonth, year: ledgerYear } = deriveHebrewMonthYearFromDate(
+    String(pending.date)
+  );
   const { error: insertError } = await supabase.from("transactions").insert({
     user_id: pending.user_id,
     title: pending.title,
@@ -281,15 +266,18 @@ async function handlePayloadById(supabase, id, method, body, res) {
     category: pending.category,
     subcategory: pending.subcategory ?? null,
     date: pending.date,
-    month: pending.month,
-    year: pending.year,
+    month: ledgerMonth,
+    year: ledgerYear,
     notes: pending.notes ?? null,
   });
   if (insertError) {
     res.writeHead(500, { "Content-Type": "application/json" });
     return res.end(JSON.stringify({ error: insertError.message }));
   }
-  await supabase.from("pending_expenses").update({ status: "approved" }).eq("id", id);
+  await supabase
+    .from("pending_expenses")
+    .update({ status: "approved", month: ledgerMonth, year: ledgerYear })
+    .eq("id", id);
   res.writeHead(200, { "Content-Type": "application/json" });
   res.end(JSON.stringify({ ok: true, status: "approved" }));
 }
