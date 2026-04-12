@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
-import { deriveHebrewMonthYearFromDate } from "../../../shared/hebrewMonthYear";
+import { deriveHebrewMonthYearFromDate } from "../../../shared/hebrewMonthYear.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {

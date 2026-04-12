@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
-import { deriveHebrewMonthYearFromDate } from "../../shared/hebrewMonthYear";
+import { deriveHebrewMonthYearFromDate } from "../../shared/hebrewMonthYear.js";
 
 function isOpenClawAuthenticated(req: { headers?: Record<string, string | string[] | undefined> }): boolean {
   const token = process.env.OPENCLAW_API_TOKEN;

@@ -5,7 +5,7 @@ import {
   deriveHebrewMonthYearFromDate,
   HEBREW_MONTH_NAMES,
   resolveHebrewCalendarMonthSummaryQuery,
-} from "../../shared/hebrewMonthYear";
+} from "../../shared/hebrewMonthYear.js";
 
 const DEFAULT_USER_ID = "c0d1a144-90cc-449f-a1ae-a1709cb534ca";
 
