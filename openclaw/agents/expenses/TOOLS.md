@@ -40,7 +40,7 @@ Use at conversation start, after submissions, or on heartbeat to stay aligned wi
 
 **Read-only** booked ledger for one Hebrew calendar month, bucketed by the **assigned** `date` on each transaction (same rule as the NestEgg app UI — not `created_at`, not the stored `month`/`year` columns alone).
 
-**Query (required):** `month` — Hebrew month name (e.g. `אפריל`), `year` — e.g. `2026`  
+**Query (required):** `month` — Hebrew month name (e.g. `אפריל`), `year` — e.g. `2026` (digits only, 1970–2100). The server **normalizes** the month string (NFC, trims, strips zero-width chars) so chat/URL quirks still match. Unknown month/year → **400** `unknown_hebrew_month_or_year` (never a silent full-table scan).  
 **Query (optional):** `include_transactions=true` — include full row list (can be large; default is totals only).
 
 **Example:**  

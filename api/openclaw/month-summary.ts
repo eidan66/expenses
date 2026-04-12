@@ -3,7 +3,8 @@ import { createClient } from "@supabase/supabase-js";
 import { isOpenClawAuthenticated } from "../lib/openclawAuth.js";
 import {
   deriveHebrewMonthYearFromDate,
-  isoDateHalfOpenRangeForHebrewCalendarMonth,
+  HEBREW_MONTH_NAMES,
+  resolveHebrewCalendarMonthSummaryQuery,
 } from "../../shared/hebrewMonthYear";
 
 const DEFAULT_USER_ID = "c0d1a144-90cc-449f-a1ae-a1709cb534ca";
@@ -28,11 +29,19 @@ function parseAmount(s: string): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-function rowInPeriod(row: TxRow, hebrewMonth: string, year: string): boolean {
+function firstQueryString(
+  q: string | string[] | undefined
+): string {
+  if (q == null) return "";
+  const s = Array.isArray(q) ? q[0] : q;
+  return typeof s === "string" ? s : "";
+}
+
+function rowInPeriod(row: TxRow, canonicalHebrewMonth: string, year: string): boolean {
   const d = row.date?.trim();
   if (!d) return false;
   const derived = deriveHebrewMonthYearFromDate(d);
-  return derived.month === hebrewMonth && derived.year === year;
+  return derived.month === canonicalHebrewMonth && derived.year === year;
 }
 
 /**
@@ -51,15 +60,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    const month = typeof req.query.month === "string" ? req.query.month.trim() : "";
-    const year = typeof req.query.year === "string" ? req.query.year.trim() : "";
+    const monthRaw = firstQueryString(req.query.month).trim();
+    const yearRaw = firstQueryString(req.query.year).trim();
     const includeTransactions =
       req.query.include_transactions === "1" || req.query.include_transactions === "true";
-    if (!month || !year) {
+    if (!monthRaw || !yearRaw) {
       return res.status(400).json({
         error: "Query required: month (Hebrew name) and year, e.g. ?month=אפריל&year=2026",
       });
     }
+
+    const resolved = resolveHebrewCalendarMonthSummaryQuery(monthRaw, yearRaw);
+    if (!resolved) {
+      return res.status(400).json({
+        error: "unknown_hebrew_month_or_year",
+        month_received: monthRaw,
+        year_received: yearRaw,
+        allowed_months: [...HEBREW_MONTH_NAMES],
+      });
+    }
+
+    const { canonicalMonth, year, range: dateRange } = resolved;
 
     const supabaseUrl = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -72,23 +93,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const userId = process.env.OPENCLAW_USER_ID ?? DEFAULT_USER_ID;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    /** DB-side filter on ISO calendar month `[gte, lt)` — works for date/timestamp/text; avoids full-table scan. */
-    const dateRange = isoDateHalfOpenRangeForHebrewCalendarMonth(month, year);
-
     const all: TxRow[] = [];
     for (let page = 0; page < MAX_PAGES; page++) {
       const from = page * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
-      let query = supabase
+      const query = supabase
         .from("transactions")
         .select("id, title, amount, category, subcategory, date, month, year, notes")
         .eq("user_id", userId)
+        .gte("date", dateRange.gte)
+        .lt("date", dateRange.lt)
         .order("date", { ascending: false })
         .range(from, to);
-
-      if (dateRange) {
-        query = query.gte("date", dateRange.gte).lt("date", dateRange.lt);
-      }
 
       const { data, error } = await query;
 
@@ -100,7 +116,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (chunk.length < PAGE_SIZE) break;
     }
 
-    const inPeriod = all.filter((r) => rowInPeriod(r, month, year));
+    const inPeriod = all.filter((r) => rowInPeriod(r, canonicalMonth, year));
 
     let income = 0;
     let expenses = 0;
@@ -124,11 +140,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ok: true,
       generated_at: new Date().toISOString(),
       scope: { user_id: userId },
-      period: { month, year },
+      period: { month: canonicalMonth, year, month_requested: monthRaw },
       basis: "assigned_date_field",
-      query: dateRange
-        ? { date_gte: dateRange.gte, date_lt: dateRange.lt }
-        : { date_gte: null, date_lt: null },
+      query: { date_gte: dateRange.gte, date_lt: dateRange.lt },
       counts: {
         transactions_in_period: inPeriod.length,
         ledger_rows_loaded: all.length,

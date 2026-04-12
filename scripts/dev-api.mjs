@@ -9,7 +9,8 @@ import { parse as parseUrl } from "url";
 import { createClient } from "@supabase/supabase-js";
 import {
   deriveHebrewMonthYearFromDate,
-  isoDateHalfOpenRangeForHebrewCalendarMonth,
+  HEBREW_MONTH_NAMES,
+  resolveHebrewCalendarMonthSummaryQuery,
 } from "../shared/hebrewMonthYear.ts";
 
 // Load .env and .env.local from project root
@@ -291,12 +292,12 @@ const LEDGER_MAX_PAGES = 20;
 async function handleOpenClawMonthSummary(supabase, req, res) {
   const userId = process.env.OPENCLAW_USER_ID ?? DEFAULT_USER_ID;
   const url = new URL(req.url || "", "http://localhost");
-  const month = (url.searchParams.get("month") || "").trim();
-  const year = (url.searchParams.get("year") || "").trim();
+  const monthRaw = (url.searchParams.get("month") || "").trim();
+  const yearRaw = (url.searchParams.get("year") || "").trim();
   const includeTransactions =
     url.searchParams.get("include_transactions") === "1" ||
     url.searchParams.get("include_transactions") === "true";
-  if (!month || !year) {
+  if (!monthRaw || !yearRaw) {
     res.writeHead(400, { "Content-Type": "application/json" });
     return res.end(
       JSON.stringify({
@@ -305,11 +306,26 @@ async function handleOpenClawMonthSummary(supabase, req, res) {
     );
   }
 
+  const resolved = resolveHebrewCalendarMonthSummaryQuery(monthRaw, yearRaw);
+  if (!resolved) {
+    res.writeHead(400, { "Content-Type": "application/json" });
+    return res.end(
+      JSON.stringify({
+        error: "unknown_hebrew_month_or_year",
+        month_received: monthRaw,
+        year_received: yearRaw,
+        allowed_months: [...HEBREW_MONTH_NAMES],
+      })
+    );
+  }
+
+  const { canonicalMonth, year, range: dateRange } = resolved;
+
   function rowInPeriod(row) {
     const d = (row.date || "").trim();
     if (!d) return false;
     const derived = deriveHebrewMonthYearFromDate(d);
-    return derived.month === month && derived.year === year;
+    return derived.month === canonicalMonth && derived.year === year;
   }
 
   function parseAmount(s) {
@@ -317,20 +333,18 @@ async function handleOpenClawMonthSummary(supabase, req, res) {
     return Number.isFinite(n) ? n : 0;
   }
 
-  const dateRange = isoDateHalfOpenRangeForHebrewCalendarMonth(month, year);
   const all = [];
   for (let page = 0; page < LEDGER_MAX_PAGES; page++) {
     const from = page * LEDGER_PAGE;
     const to = from + LEDGER_PAGE - 1;
-    let query = supabase
+    const query = supabase
       .from("transactions")
       .select("id, title, amount, category, subcategory, date, month, year, notes")
       .eq("user_id", userId)
+      .gte("date", dateRange.gte)
+      .lt("date", dateRange.lt)
       .order("date", { ascending: false })
       .range(from, to);
-    if (dateRange) {
-      query = query.gte("date", dateRange.gte).lt("date", dateRange.lt);
-    }
     const { data, error } = await query;
     if (error) {
       res.writeHead(500, { "Content-Type": "application/json" });
@@ -363,11 +377,9 @@ async function handleOpenClawMonthSummary(supabase, req, res) {
     ok: true,
     generated_at: new Date().toISOString(),
     scope: { user_id: userId },
-    period: { month, year },
+    period: { month: canonicalMonth, year, month_requested: monthRaw },
     basis: "assigned_date_field",
-    query: dateRange
-      ? { date_gte: dateRange.gte, date_lt: dateRange.lt }
-      : { date_gte: null, date_lt: null },
+    query: { date_gte: dateRange.gte, date_lt: dateRange.lt },
     counts: { transactions_in_period: inPeriod.length, ledger_rows_loaded: all.length },
     totals: {
       income,

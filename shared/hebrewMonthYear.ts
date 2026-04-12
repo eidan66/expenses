@@ -14,21 +14,49 @@ export const HEBREW_MONTH_NAMES = [
   "דצמבר",
 ] as const;
 
+/** Zero-width / BOM characters that sometimes appear in copy-paste or chat URLs. */
+const HE_MONTH_STRIP = /[\u200B-\u200D\uFEFF]/g;
+
 /**
- * Half-open ISO range `[gte, lt)` for calendar month — safe for PostgREST on
- * `date`, `timestamp`, and text columns that store ISO dates or datetimes
- * (`2026-04-15T00:00:00.000Z` sorts between `2026-04-01` and `2026-05-01`).
- * Avoids `LIKE` on `date`-typed columns (which can 500 in Postgres).
+ * Normalize user-supplied Hebrew month text so it matches `HEBREW_MONTH_NAMES`
+ * (NFC, trim, strip invisible chars).
  */
-export function isoDateHalfOpenRangeForHebrewCalendarMonth(
-  hebrewMonth: string,
-  yearStr: string
-): { gte: string; lt: string } | null {
+export function normalizeHebrewMonthLabelInput(input: string): string {
+  return input.replace(HE_MONTH_STRIP, "").trim().normalize("NFC");
+}
+
+/** Resolve to a canonical month label, or `null` if unknown. */
+export function canonicalHebrewMonthFromUserInput(input: string): string | null {
+  const n = normalizeHebrewMonthLabelInput(input);
+  for (const name of HEBREW_MONTH_NAMES) {
+    if (name === n) return name;
+  }
+  return null;
+}
+
+export type HebrewCalendarMonthSummaryQuery = {
+  canonicalMonth: string;
+  year: string;
+  range: { gte: string; lt: string };
+};
+
+/**
+ * Validates month + year for `/month-summary`: canonical Hebrew month, year string,
+ * and half-open ISO `[gte, lt)` for PostgREST. Returns `null` if month/year are invalid.
+ */
+export function resolveHebrewCalendarMonthSummaryQuery(
+  hebrewMonthInput: string,
+  yearStrInput: string
+): HebrewCalendarMonthSummaryQuery | null {
+  const canonicalMonth = canonicalHebrewMonthFromUserInput(hebrewMonthInput);
+  const y = parseInt(String(yearStrInput).trim(), 10);
+  if (!canonicalMonth || !Number.isFinite(y) || y < 1970 || y > 2100) {
+    return null;
+  }
   const idx = HEBREW_MONTH_NAMES.indexOf(
-    hebrewMonth as (typeof HEBREW_MONTH_NAMES)[number]
+    canonicalMonth as (typeof HEBREW_MONTH_NAMES)[number]
   );
-  const y = parseInt(yearStr, 10);
-  if (idx < 0 || !Number.isFinite(y)) return null;
+  if (idx < 0) return null;
   const monthNum = idx + 1;
   const mm = String(monthNum).padStart(2, "0");
   const gte = `${y}-${mm}-01`;
@@ -39,7 +67,22 @@ export function isoDateHalfOpenRangeForHebrewCalendarMonth(
     nextY = y + 1;
   }
   const lt = `${nextY}-${String(nextM).padStart(2, "0")}-01`;
-  return { gte, lt };
+  return {
+    canonicalMonth,
+    year: String(y),
+    range: { gte, lt },
+  };
+}
+
+/**
+ * @deprecated Prefer `resolveHebrewCalendarMonthSummaryQuery` (normalizes month input).
+ */
+export function isoDateHalfOpenRangeForHebrewCalendarMonth(
+  hebrewMonth: string,
+  yearStr: string
+): { gte: string; lt: string } | null {
+  const r = resolveHebrewCalendarMonthSummaryQuery(hebrewMonth, yearStr);
+  return r?.range ?? null;
 }
 
 /**
