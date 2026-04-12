@@ -16,7 +16,7 @@ Set the token in OpenClaw’s environment; never paste the token into agent mark
 Related env vars (server-side, not for client apps):
 
 - `OPENCLAW_API_TOKEN` — Bearer secret
-- `OPENCLAW_USER_ID` — optional; scopes pending rows to a user (see `api/openclaw/payloads.ts`)
+- `OPENCLAW_USER_ID` — **on Vercel (NestEgg server)** must match the Supabase **`user_id`** of the NestEgg web login. If unset, the API uses a default UUID and **chat will disagree with the dashboard**. See **`docs/OPENCLAW_CREDENTIALS.md`**.
 
 ## Endpoints
 
@@ -46,11 +46,13 @@ Use at conversation start, after submissions, or on heartbeat to stay aligned wi
 **Example:**  
 `GET /api/openclaw/month-summary?month=אפריל&year=2026`
 
-**Returns:** `totals` (income, expenses, savings_transfers, net_after_expenses_and_savings), `expenses_by_category`, `counts`, `basis: "assigned_date_field"`, and `query.date_gte` / `query.date_lt` (half-open ISO month range, e.g. `2026-04-01` .. `< 2026-05-01`).
+**Returns:** `totals` (income, expenses, savings_transfers, net_after_expenses_and_savings), `expenses_by_category`, `counts`, `basis: "assigned_date_field"`, `query.date_gte` / `query.date_lt`, and `query.month_year_column_fallback` (hints at the secondary load path).
 
-**Storage note:** The server scopes rows with `date` in that ISO range (works for `date`, `timestamp`, and ISO-prefixed text). Legacy rows whose `date` is only `D.M.YYYY` text may be omitted until the row’s `date` is normalized (e.g. after an edit/save in NestEgg).
+**Storage note:** `transactions.date` is **text**. The handler loads (1) rows whose `date` sorts in the ISO half-open month range **and** (2) rows whose stored **`month` + `year`** columns match, then **dedupes** by `id` and keeps only rows whose parsed `date` matches the requested Hebrew month (same rule as the NestEgg UI). That aligns OpenClaw with the dashboard when `date` is `D.M.YYYY` or other non-ISO strings.
 
 For **monthly spend / category reports in chat**, prefer this endpoint over inferring totals from `GET /api/openclaw/status` (which only returns a short `transactions.recent` slice).
+
+For a **full line list**, add **`include_transactions=true`**; ground answers on **`counts.transactions_in_period`** and echo **`period.year`** / **`scope.user_id`** from JSON. For **“החודש הנוכחי”**, use the **current calendar year** (e.g. Asia/Jerusalem), not an assumed training-year.
 
 ### GET /api/categories
 

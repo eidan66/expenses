@@ -96,6 +96,8 @@ export function deriveHebrewMonthYearFromDate(dateStr: string): {
   year: string;
 } {
   const s = dateStr.trim();
+  /** PostgREST / ISO often returns `YYYY-MM-DDTHH:mm:ss…` — bucket by the calendar date prefix, not JS TZ shift. */
+  const isoDateHead = /^\d{4}-\d{2}-\d{2}/.test(s) ? s.slice(0, 10) : s;
 
   const dmyDot = /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/.exec(s);
   if (dmyDot) {
@@ -123,7 +125,7 @@ export function deriveHebrewMonthYearFromDate(dateStr: string): {
     }
   }
 
-  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDateHead);
   if (iso) {
     const y = parseInt(iso[1], 10);
     const monthNum = parseInt(iso[2], 10);

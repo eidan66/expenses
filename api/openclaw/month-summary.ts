@@ -97,11 +97,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const userId = process.env.OPENCLAW_USER_ID ?? DEFAULT_USER_ID;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    const all: TxRow[] = [];
+    /**
+     * `transactions.date` is **text** (not a Postgres `date`). Lexicographic `.gte/.lt` on ISO
+     * strings only matches `YYYY-MM-DD` rows. The NestEgg UI loads all rows and filters with
+     * `deriveHebrewMonthYearFromDate` (supports D.M.YYYY, etc.). We merge:
+     * 1) ISO half-open range on `date` (fast path)
+     * 2) rows where stored `month` + `year` columns match (catches non-ISO `date` strings)
+     * then dedupe by `id` and apply the same `rowInPeriod` rule as the app.
+     */
+    const byId = new Map<string, TxRow>();
+
     for (let page = 0; page < MAX_PAGES; page++) {
       const from = page * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
-      const query = supabase
+      const { data, error } = await supabase
         .from("transactions")
         .select("id, title, amount, category, subcategory, date, month, year, notes")
         .eq("user_id", userId)
@@ -110,15 +119,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .order("date", { ascending: false })
         .range(from, to);
 
-      const { data, error } = await query;
+      if (error) {
+        return res.status(500).json({ error: error.message });
+      }
+      const chunk = (data ?? []) as TxRow[];
+      for (const row of chunk) {
+        byId.set(row.id, row);
+      }
+      if (chunk.length < PAGE_SIZE) break;
+    }
+
+    for (let page = 0; page < MAX_PAGES; page++) {
+      const from = page * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+      const { data, error } = await supabase
+        .from("transactions")
+        .select("id, title, amount, category, subcategory, date, month, year, notes")
+        .eq("user_id", userId)
+        .eq("year", year)
+        .eq("month", canonicalMonth)
+        .order("id", { ascending: true })
+        .range(from, to);
 
       if (error) {
         return res.status(500).json({ error: error.message });
       }
       const chunk = (data ?? []) as TxRow[];
-      all.push(...chunk);
+      for (const row of chunk) {
+        byId.set(row.id, row);
+      }
       if (chunk.length < PAGE_SIZE) break;
     }
+
+    const all = Array.from(byId.values());
 
     const inPeriod = all.filter((r) => rowInPeriod(r, canonicalMonth, year));
 
@@ -146,7 +179,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       scope: { user_id: userId },
       period: { month: canonicalMonth, year, month_requested: monthRaw },
       basis: "assigned_date_field",
-      query: { date_gte: dateRange.gte, date_lt: dateRange.lt },
+      query: {
+        date_gte: dateRange.gte,
+        date_lt: dateRange.lt,
+        month_year_column_fallback: { month: canonicalMonth, year },
+      },
       counts: {
         transactions_in_period: inPeriod.length,
         ledger_rows_loaded: all.length,

@@ -66,6 +66,8 @@ Authorization: Bearer <token>
 
 **Purpose:** Read-only snapshot of NestEgg data for the OpenClaw user (`OPENCLAW_USER_ID` or server default). Use this to “ping” current state: pending expense counts, recent pending rows, recent ledger transactions, and savings goals. No direct SQL — only this curated JSON.
 
+**Important:** If **`OPENCLAW_USER_ID`** on Vercel does not match the Supabase user you use in the browser, totals and rows will **differ from the web app**. Configure it per **[OPENCLAW_CREDENTIALS.md](OPENCLAW_CREDENTIALS.md)**.
+
 **Request:**
 ```
 GET /api/openclaw/status

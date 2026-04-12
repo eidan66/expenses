@@ -333,11 +333,11 @@ async function handleOpenClawMonthSummary(supabase, req, res) {
     return Number.isFinite(n) ? n : 0;
   }
 
-  const all = [];
+  const byId = new Map();
   for (let page = 0; page < LEDGER_MAX_PAGES; page++) {
     const from = page * LEDGER_PAGE;
     const to = from + LEDGER_PAGE - 1;
-    const query = supabase
+    const { data, error } = await supabase
       .from("transactions")
       .select("id, title, amount, category, subcategory, date, month, year, notes")
       .eq("user_id", userId)
@@ -345,15 +345,39 @@ async function handleOpenClawMonthSummary(supabase, req, res) {
       .lt("date", dateRange.lt)
       .order("date", { ascending: false })
       .range(from, to);
-    const { data, error } = await query;
     if (error) {
       res.writeHead(500, { "Content-Type": "application/json" });
       return res.end(JSON.stringify({ error: error.message }));
     }
     const chunk = data || [];
-    all.push(...chunk);
+    for (const row of chunk) {
+      byId.set(row.id, row);
+    }
     if (chunk.length < LEDGER_PAGE) break;
   }
+  for (let page = 0; page < LEDGER_MAX_PAGES; page++) {
+    const from = page * LEDGER_PAGE;
+    const to = from + LEDGER_PAGE - 1;
+    const { data, error } = await supabase
+      .from("transactions")
+      .select("id, title, amount, category, subcategory, date, month, year, notes")
+      .eq("user_id", userId)
+      .eq("year", year)
+      .eq("month", canonicalMonth)
+      .order("id", { ascending: true })
+      .range(from, to);
+    if (error) {
+      res.writeHead(500, { "Content-Type": "application/json" });
+      return res.end(JSON.stringify({ error: error.message }));
+    }
+    const chunk = data || [];
+    for (const row of chunk) {
+      byId.set(row.id, row);
+    }
+    if (chunk.length < LEDGER_PAGE) break;
+  }
+
+  const all = Array.from(byId.values());
 
   const inPeriod = all.filter(rowInPeriod);
   let income = 0;
@@ -379,7 +403,11 @@ async function handleOpenClawMonthSummary(supabase, req, res) {
     scope: { user_id: userId },
     period: { month: canonicalMonth, year, month_requested: monthRaw },
     basis: "assigned_date_field",
-    query: { date_gte: dateRange.gte, date_lt: dateRange.lt },
+    query: {
+      date_gte: dateRange.gte,
+      date_lt: dateRange.lt,
+      month_year_column_fallback: { month: canonicalMonth, year },
+    },
     counts: { transactions_in_period: inPeriod.length, ledger_rows_loaded: all.length },
     totals: {
       income,
