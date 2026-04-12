@@ -282,6 +282,95 @@ async function handlePayloadById(supabase, id, method, body, res) {
   res.end(JSON.stringify({ ok: true, status: "approved" }));
 }
 
+const LEDGER_PAGE = 1000;
+const LEDGER_MAX_PAGES = 20;
+
+async function handleOpenClawMonthSummary(supabase, req, res) {
+  const userId = process.env.OPENCLAW_USER_ID ?? DEFAULT_USER_ID;
+  const url = new URL(req.url || "", "http://localhost");
+  const month = (url.searchParams.get("month") || "").trim();
+  const year = (url.searchParams.get("year") || "").trim();
+  const includeTransactions =
+    url.searchParams.get("include_transactions") === "1" ||
+    url.searchParams.get("include_transactions") === "true";
+  if (!month || !year) {
+    res.writeHead(400, { "Content-Type": "application/json" });
+    return res.end(
+      JSON.stringify({
+        error: "Query required: month (Hebrew) and year, e.g. ?month=אפריל&year=2026",
+      })
+    );
+  }
+
+  function rowInPeriod(row) {
+    const d = (row.date || "").trim();
+    if (!d) return false;
+    const derived = deriveHebrewMonthYearFromDate(d);
+    return derived.month === month && derived.year === year;
+  }
+
+  function parseAmount(s) {
+    const n = parseFloat(String(s));
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  const all = [];
+  for (let page = 0; page < LEDGER_MAX_PAGES; page++) {
+    const from = page * LEDGER_PAGE;
+    const to = from + LEDGER_PAGE - 1;
+    const { data, error } = await supabase
+      .from("transactions")
+      .select("id, title, amount, category, subcategory, date, month, year, notes")
+      .eq("user_id", userId)
+      .order("date", { ascending: false })
+      .range(from, to);
+    if (error) {
+      res.writeHead(500, { "Content-Type": "application/json" });
+      return res.end(JSON.stringify({ error: error.message }));
+    }
+    const chunk = data || [];
+    all.push(...chunk);
+    if (chunk.length < LEDGER_PAGE) break;
+  }
+
+  const inPeriod = all.filter(rowInPeriod);
+  let income = 0;
+  let expenses = 0;
+  let savingsTransfers = 0;
+  const expensesByCategory = {};
+  for (const t of inPeriod) {
+    const amount = parseAmount(t.amount);
+    if (t.category === "הכנסה") {
+      if (amount > 0) income += amount;
+    } else if (t.category === "חיסכון") {
+      savingsTransfers += Math.abs(amount);
+    } else if (amount < 0) {
+      const absAmt = Math.abs(amount);
+      expenses += absAmt;
+      expensesByCategory[t.category] = (expensesByCategory[t.category] || 0) + absAmt;
+    }
+  }
+
+  const body = {
+    ok: true,
+    generated_at: new Date().toISOString(),
+    scope: { user_id: userId },
+    period: { month, year },
+    basis: "assigned_date_field",
+    counts: { transactions_in_period: inPeriod.length, ledger_rows_loaded: all.length },
+    totals: {
+      income,
+      expenses,
+      savings_transfers: savingsTransfers,
+      net_after_expenses_and_savings: income - expenses - savingsTransfers,
+    },
+    expenses_by_category: expensesByCategory,
+  };
+  if (includeTransactions) body.transactions = inPeriod;
+  res.writeHead(200, { "Content-Type": "application/json" });
+  res.end(JSON.stringify(body));
+}
+
 const server = createServer(async (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
@@ -338,6 +427,13 @@ const server = createServer(async (req, res) => {
     }
     return handleOpenClawStatus(supabase, req, res);
   }
+  if (pathname === "/api/openclaw/month-summary" && req.method === "GET") {
+    if (!isOpenClawAuthenticated(req.headers)) {
+      res.writeHead(401, { "Content-Type": "application/json" });
+      return res.end(JSON.stringify({ error: "Unauthorized: provide Authorization: Bearer <token>" }));
+    }
+    return handleOpenClawMonthSummary(supabase, req, res);
+  }
   if (pathname === "/api/openclaw/payloads") {
     if (!isOpenClawAuthenticated(req.headers)) {
       res.writeHead(401, { "Content-Type": "application/json" });
@@ -359,6 +455,7 @@ server.listen(port, () => {
   console.log("  POST /api/analytics-chat");
   console.log("  GET  /api/categories");
   console.log("  GET  /api/openclaw/status");
+  console.log("  GET  /api/openclaw/month-summary?month=…&year=…");
   console.log("  GET  /api/openclaw/payloads");
   console.log("  POST /api/openclaw/payloads");
   console.log("  POST /api/openclaw/payloads/:id (body: { action: 'approve'|'decline' })");

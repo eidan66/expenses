@@ -27,6 +27,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useQuery } from "@tanstack/react-query";
 import { type Transaction } from "@shared/schema";
 import { getTransactions } from "@/lib/supabaseQueries";
+import { transactionMatchesAssignedPeriod } from "@/lib/transactionPeriod";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   BUDGET_PERIOD_STORAGE_KEY,
@@ -218,7 +219,8 @@ export default function Budget() {
   }, [selectedMonth, selectedYear]);
 
   const transactionsThisMonth = useMemo(
-    () => transactions.filter((t) => t.month === selectedMonth && t.year === selectedYear),
+    () =>
+      transactions.filter((t) => transactionMatchesAssignedPeriod(t, selectedMonth, selectedYear)),
     [transactions, selectedMonth, selectedYear]
   );
 

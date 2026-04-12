@@ -28,6 +28,10 @@ import { queryClient } from "@/lib/queryClient";
 import { type Transaction, type InsertTransaction, type Goal, type InsertGoal } from "@shared/schema";
 import { getTransactions, createTransaction, getGoals, createGoal, updateTransaction, deleteTransaction, deleteTransactionsByIds, updateGoal, deleteGoal, getCategories } from "@/lib/supabaseQueries";
 import { BUDGET_SELECTABLE_YEARS, HEBREW_MONTHS } from "@/lib/budgetConstants";
+import {
+  storagePeriodFromHebrewMonthYear,
+  transactionMatchesAssignedPeriod,
+} from "@/lib/transactionPeriod";
 
 const MONTHS = [...HEBREW_MONTHS];
 
@@ -103,7 +107,7 @@ const currentMonthName = MONTHS[currentMonthIndex];
     let totalSavingsTransfers = 0;
     
     transactions.forEach(t => {
-      if (t.month !== selectedMonth || t.year !== selectedYear) return;
+      if (!transactionMatchesAssignedPeriod(t, selectedMonth, selectedYear)) return;
       
       const amount = safeParseFloat(t.amount);
       
@@ -210,7 +214,15 @@ const currentMonthName = MONTHS[currentMonthIndex];
         description: "העסקה תועדה בהצלחה במערכת"
       });
       setOpen(false);
-      setNewTx({ title: "", amount: "", category: "", subcategory: "", notes: "", month: currentMonthName, year: currentYearStr });
+      setNewTx({
+        title: "",
+        amount: "",
+        category: "",
+        subcategory: "",
+        notes: "",
+        month: selectedMonth,
+        year: selectedYear,
+      });
     },
     onError: () => {
       toast({
@@ -370,15 +382,17 @@ const currentMonthName = MONTHS[currentMonthIndex];
     const val = safeParseFloat(newTx.amount);
     const finalAmount = newTx.category === "הכנסה" ? Math.abs(val) : -Math.abs(val);
 
+    const { date, month, year } = storagePeriodFromHebrewMonthYear(newTx.month, newTx.year);
+
     createTransactionMutation.mutate({
       title: newTx.title,
       amount: finalAmount.toString(),
       category: newTx.category,
       subcategory: newTx.subcategory || null,
-      date: new Date().toLocaleDateString('he-IL'), // Store real date string
-      month: newTx.month,
-      year: newTx.year,
-      notes: newTx.notes || null
+      date,
+      month,
+      year,
+      notes: newTx.notes || null,
     });
   };
 
@@ -412,8 +426,7 @@ const currentMonthName = MONTHS[currentMonthIndex];
             .toLowerCase()
             .includes(searchQuery.toLowerCase()) ||
           Boolean(searchDigits && amountDigits.includes(searchDigits));
-        const matchesMonth = t.month === selectedMonth;
-        const matchesYear = t.year === selectedYear;
+        const matchesPeriod = transactionMatchesAssignedPeriod(t, selectedMonth, selectedYear);
         const matchesActivityCategory =
           !activityFilterCategory || t.category === activityFilterCategory;
         const matchesActivitySubcategory =
@@ -422,8 +435,7 @@ const currentMonthName = MONTHS[currentMonthIndex];
           (t.subcategory || "") === activityFilterSubcategory;
         return (
           matchesSearch &&
-          matchesMonth &&
-          matchesYear &&
+          matchesPeriod &&
           matchesActivityCategory &&
           matchesActivitySubcategory
         );
@@ -536,7 +548,19 @@ const currentMonthName = MONTHS[currentMonthIndex];
           </div>
           
           <div className="flex gap-3">
-            <Dialog open={open} onOpenChange={setOpen}>
+            <Dialog
+              open={open}
+              onOpenChange={(next) => {
+                setOpen(next);
+                if (next) {
+                  setNewTx((prev) => ({
+                    ...prev,
+                    month: selectedMonth,
+                    year: selectedYear,
+                  }));
+                }
+              }}
+            >
               <DialogTrigger asChild>
                 <Button className="rounded-full shadow-lg shadow-primary/20 hover:shadow-primary/30">
                   <Plus className="ml-2 h-4 w-4" /> הוספת עסקה
@@ -787,7 +811,11 @@ const currentMonthName = MONTHS[currentMonthIndex];
                       if (editingTransaction) {
                         const val = safeParseFloat(editingTransaction.amount);
                         const finalAmount = editingTransaction.category === "הכנסה" ? Math.abs(val) : -Math.abs(val);
-                        
+                        const { date, month, year } = storagePeriodFromHebrewMonthYear(
+                          editingTransaction.month,
+                          editingTransaction.year
+                        );
+
                         updateTransactionMutation.mutate({
                           id: editingTransaction.id,
                           updates: {
@@ -795,11 +823,11 @@ const currentMonthName = MONTHS[currentMonthIndex];
                             amount: finalAmount.toString(),
                             category: editingTransaction.category,
                             subcategory: editingTransaction.subcategory,
-                            date: editingTransaction.date,
-                            month: editingTransaction.month,
-                            year: editingTransaction.year,
-                            notes: editingTransaction.notes
-                          }
+                            date,
+                            month,
+                            year,
+                            notes: editingTransaction.notes,
+                          },
                         });
                       }
                     }}

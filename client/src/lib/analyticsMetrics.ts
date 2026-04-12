@@ -1,4 +1,5 @@
 import type { Transaction } from "@shared/schema";
+import { deriveHebrewMonthYearFromDate } from "@shared/hebrewMonthYear";
 import { safeParseFloat, safeParseInt } from "@/lib/utils";
 
 export const ANALYTICS_MONTHS = [
@@ -58,11 +59,23 @@ export type AnalyticsReport = {
 const PIE_TOP_N = 7;
 const SUB_TOP_K = 12;
 
+/** Calendar period from **assigned** `date` (not stored month/year, not created_at). */
+function txAssignedPeriod(
+  t: Transaction
+): { month: string; year: number; monthIndex: number } | null {
+  const d = (t.date as string | undefined)?.trim();
+  if (!d) return null;
+  const { month, year: yStr } = deriveHebrewMonthYearFromDate(d);
+  const mi = ANALYTICS_MONTHS.indexOf(month as (typeof ANALYTICS_MONTHS)[number]);
+  const y = safeParseInt(yStr);
+  if (mi < 0 || !Number.isFinite(y)) return null;
+  return { month, year: y, monthIndex: mi };
+}
+
 function txPeriodValue(t: Transaction): number {
-  const mi = ANALYTICS_MONTHS.indexOf(t.month as (typeof ANALYTICS_MONTHS)[number]);
-  const y = safeParseInt(t.year);
-  if (mi < 0 || !Number.isFinite(y)) return Number.NaN;
-  return y * 12 + mi;
+  const p = txAssignedPeriod(t);
+  if (!p) return Number.NaN;
+  return p.year * 12 + p.monthIndex;
 }
 
 export function filterTransactionsByRange(
@@ -77,13 +90,10 @@ export function filterTransactionsByRange(
 
   if (range === "ytd") {
     return transactions.filter((t) => {
-      const y = safeParseInt(t.year);
-      const mi = ANALYTICS_MONTHS.indexOf(
-        t.month as (typeof ANALYTICS_MONTHS)[number]
-      );
-      if (mi < 0 || !Number.isFinite(y)) return false;
-      if (y !== curY) return false;
-      return mi <= curM;
+      const p = txAssignedPeriod(t);
+      if (!p) return false;
+      if (p.year !== curY) return false;
+      return p.monthIndex <= curM;
     });
   }
 
@@ -151,18 +161,17 @@ export function buildAnalyticsReport(
 
   for (const t of filteredTransactions) {
     const { isIncome, isSavings, isExpense, abs } = classifyTx(t);
-    const monthIndex = ANALYTICS_MONTHS.indexOf(
-      t.month as (typeof ANALYTICS_MONTHS)[number]
-    );
-    const year = safeParseInt(t.year);
-    const key = `${t.month} ${t.year}`;
+    const period = txAssignedPeriod(t);
+    if (!period) continue;
+    const { month, year, monthIndex } = period;
+    const key = `${month} ${year}`;
     if (!monthlyMap.has(key)) {
       monthlyMap.set(key, {
         income: 0,
         expenses: 0,
         savingsTransfers: 0,
-        monthIndex: monthIndex >= 0 ? monthIndex : 0,
-        year: Number.isFinite(year) ? year : 0,
+        monthIndex,
+        year,
       });
     }
     const m = monthlyMap.get(key)!;

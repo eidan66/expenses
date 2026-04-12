@@ -36,6 +36,20 @@ Health check. No auth required on some deployments; use to verify reachability.
 
 Use at conversation start, after submissions, or on heartbeat to stay aligned with the household’s real data.
 
+### GET /api/openclaw/month-summary
+
+**Read-only** booked ledger for one Hebrew calendar month, bucketed by the **assigned** `date` on each transaction (same rule as the NestEgg app UI — not `created_at`, not the stored `month`/`year` columns alone).
+
+**Query (required):** `month` — Hebrew month name (e.g. `אפריל`), `year` — e.g. `2026`  
+**Query (optional):** `include_transactions=true` — include full row list (can be large; default is totals only).
+
+**Example:**  
+`GET /api/openclaw/month-summary?month=אפריל&year=2026`
+
+**Returns:** `totals` (income, expenses, savings_transfers, net_after_expenses_and_savings), `expenses_by_category`, `counts`, `basis: "assigned_date_field"`.
+
+For **monthly spend / category reports in chat**, prefer this endpoint over inferring totals from `GET /api/openclaw/status` (which only returns a short `transactions.recent` slice).
+
 ### GET /api/categories
 
 Returns categories with subcategories and hints for matching.
