@@ -46,7 +46,9 @@ Use at conversation start, after submissions, or on heartbeat to stay aligned wi
 **Example:**  
 `GET /api/openclaw/month-summary?month=אפריל&year=2026`
 
-**Returns:** `totals` (income, expenses, savings_transfers, net_after_expenses_and_savings), `expenses_by_category`, `counts`, `basis: "assigned_date_field"`.
+**Returns:** `totals` (income, expenses, savings_transfers, net_after_expenses_and_savings), `expenses_by_category`, `counts`, `basis: "assigned_date_field"`, and `query.date_like_prefix` (e.g. `2026-04-%`) showing the ISO month filter used server-side.
+
+**Storage note:** The server scopes rows with `date` values that match `YYYY-MM-*` (ISO-style). Legacy rows whose `date` is only `D.M.YYYY` text may be omitted until the row’s `date` is normalized (e.g. after an edit/save in NestEgg).
 
 For **monthly spend / category reports in chat**, prefer this endpoint over inferring totals from `GET /api/openclaw/status` (which only returns a short `transactions.recent` slice).
 

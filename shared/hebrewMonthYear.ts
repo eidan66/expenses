@@ -15,6 +15,24 @@ export const HEBREW_MONTH_NAMES = [
 ] as const;
 
 /**
+ * SQL/PostgREST `like` pattern for `date` values that begin with `YYYY-MM-`
+ * (e.g. `2026-04-01`, `2026-04-15T12:00:00.000Z`). Use to scope month-summary
+ * queries instead of scanning the full ledger.
+ */
+export function isoDateLikePatternForHebrewCalendarMonth(
+  hebrewMonth: string,
+  yearStr: string
+): string | null {
+  const idx = HEBREW_MONTH_NAMES.indexOf(
+    hebrewMonth as (typeof HEBREW_MONTH_NAMES)[number]
+  );
+  const y = parseInt(yearStr, 10);
+  if (idx < 0 || !Number.isFinite(y)) return null;
+  const monthNum = idx + 1;
+  return `${y}-${String(monthNum).padStart(2, "0")}-%`;
+}
+
+/**
  * Derives calendar month/year for bucketing from a stored date string.
  * `date` is the source of truth — ignores any separate month/year hints from agents/UI.
  *

@@ -7,7 +7,10 @@
 import { createServer } from "http";
 import { parse as parseUrl } from "url";
 import { createClient } from "@supabase/supabase-js";
-import { deriveHebrewMonthYearFromDate } from "../shared/hebrewMonthYear.ts";
+import {
+  deriveHebrewMonthYearFromDate,
+  isoDateLikePatternForHebrewCalendarMonth,
+} from "../shared/hebrewMonthYear.ts";
 
 // Load .env and .env.local from project root
 import { readFileSync, existsSync } from "fs";
@@ -314,16 +317,21 @@ async function handleOpenClawMonthSummary(supabase, req, res) {
     return Number.isFinite(n) ? n : 0;
   }
 
+  const isoMonthPrefix = isoDateLikePatternForHebrewCalendarMonth(month, year);
   const all = [];
   for (let page = 0; page < LEDGER_MAX_PAGES; page++) {
     const from = page * LEDGER_PAGE;
     const to = from + LEDGER_PAGE - 1;
-    const { data, error } = await supabase
+    let query = supabase
       .from("transactions")
       .select("id, title, amount, category, subcategory, date, month, year, notes")
       .eq("user_id", userId)
       .order("date", { ascending: false })
       .range(from, to);
+    if (isoMonthPrefix) {
+      query = query.like("date", isoMonthPrefix);
+    }
+    const { data, error } = await query;
     if (error) {
       res.writeHead(500, { "Content-Type": "application/json" });
       return res.end(JSON.stringify({ error: error.message }));
@@ -357,6 +365,7 @@ async function handleOpenClawMonthSummary(supabase, req, res) {
     scope: { user_id: userId },
     period: { month, year },
     basis: "assigned_date_field",
+    query: { date_like_prefix: isoMonthPrefix },
     counts: { transactions_in_period: inPeriod.length, ledger_rows_loaded: all.length },
     totals: {
       income,

@@ -146,6 +146,15 @@ async function main() {
   });
   if (getPayloadsOk) passed++; else failed++;
 
+  // 7. GET month-summary (Hebrew month + year; URL-encoded)
+  const monthSummaryOk = await runTest("GET /api/openclaw/month-summary", async () => {
+    const q = new URLSearchParams({ month: "אפריל", year: "2026" });
+    return fetchJson(`${BASE_URL}/api/openclaw/month-summary?${q.toString()}`, {
+      headers: { Authorization: `Bearer ${API_TOKEN}` },
+    });
+  });
+  if (monthSummaryOk) passed++; else failed++;
+
   console.log("\n--- Summary ---");
   console.log(`Passed: ${passed}, Failed: ${failed}`);
   process.exit(failed > 0 ? 1 : 0);

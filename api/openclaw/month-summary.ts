@@ -1,7 +1,10 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
 import { isOpenClawAuthenticated } from "../lib/openclawAuth.js";
-import { deriveHebrewMonthYearFromDate } from "../../shared/hebrewMonthYear";
+import {
+  deriveHebrewMonthYearFromDate,
+  isoDateLikePatternForHebrewCalendarMonth,
+} from "../../shared/hebrewMonthYear";
 
 const DEFAULT_USER_ID = "c0d1a144-90cc-449f-a1ae-a1709cb534ca";
 
@@ -69,16 +72,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const userId = process.env.OPENCLAW_USER_ID ?? DEFAULT_USER_ID;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
+    /** Prefer DB-side filter on ISO `YYYY-MM-*` dates (avoids scanning the full ledger / Vercel timeouts). */
+    const isoMonthPrefix = isoDateLikePatternForHebrewCalendarMonth(month, year);
+
     const all: TxRow[] = [];
     for (let page = 0; page < MAX_PAGES; page++) {
       const from = page * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
-      const { data, error } = await supabase
+      let query = supabase
         .from("transactions")
         .select("id, title, amount, category, subcategory, date, month, year, notes")
         .eq("user_id", userId)
         .order("date", { ascending: false })
         .range(from, to);
+
+      if (isoMonthPrefix) {
+        query = query.like("date", isoMonthPrefix);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         return res.status(500).json({ error: error.message });
@@ -114,6 +126,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       scope: { user_id: userId },
       period: { month, year },
       basis: "assigned_date_field",
+      query: {
+        date_like_prefix: isoMonthPrefix,
+      },
       counts: {
         transactions_in_period: inPeriod.length,
         ledger_rows_loaded: all.length,
