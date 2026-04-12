@@ -6,9 +6,6 @@
   "functions": {
     "api/**/*.ts": {
       "maxDuration": 30
-    },
-    "api/openclaw/month-summary.ts": {
-      "maxDuration": 60
     }
   },
   "rewrites": [

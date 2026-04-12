@@ -48,6 +48,10 @@ function rowInPeriod(row: TxRow, canonicalHebrewMonth: string, year: string): bo
  * GET /api/openclaw/month-summary?month=אפריל&year=2026
  * Read-only. Buckets booked transactions by **assigned** `date` (same rule as NestEgg UI).
  */
+export const config = {
+  maxDuration: 60,
+};
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     if (req.method !== "GET") {
