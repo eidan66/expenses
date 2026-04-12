@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { isOpenClawAuthenticated } from "../lib/openclawAuth.js";
 import {
   deriveHebrewMonthYearFromDate,
-  isoDateLikePatternForHebrewCalendarMonth,
+  isoDateHalfOpenRangeForHebrewCalendarMonth,
 } from "../../shared/hebrewMonthYear";
 
 const DEFAULT_USER_ID = "c0d1a144-90cc-449f-a1ae-a1709cb534ca";
@@ -72,8 +72,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const userId = process.env.OPENCLAW_USER_ID ?? DEFAULT_USER_ID;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    /** Prefer DB-side filter on ISO `YYYY-MM-*` dates (avoids scanning the full ledger / Vercel timeouts). */
-    const isoMonthPrefix = isoDateLikePatternForHebrewCalendarMonth(month, year);
+    /** DB-side filter on ISO calendar month `[gte, lt)` — works for date/timestamp/text; avoids full-table scan. */
+    const dateRange = isoDateHalfOpenRangeForHebrewCalendarMonth(month, year);
 
     const all: TxRow[] = [];
     for (let page = 0; page < MAX_PAGES; page++) {
@@ -86,8 +86,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .order("date", { ascending: false })
         .range(from, to);
 
-      if (isoMonthPrefix) {
-        query = query.like("date", isoMonthPrefix);
+      if (dateRange) {
+        query = query.gte("date", dateRange.gte).lt("date", dateRange.lt);
       }
 
       const { data, error } = await query;
@@ -126,9 +126,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       scope: { user_id: userId },
       period: { month, year },
       basis: "assigned_date_field",
-      query: {
-        date_like_prefix: isoMonthPrefix,
-      },
+      query: dateRange
+        ? { date_gte: dateRange.gte, date_lt: dateRange.lt }
+        : { date_gte: null, date_lt: null },
       counts: {
         transactions_in_period: inPeriod.length,
         ledger_rows_loaded: all.length,

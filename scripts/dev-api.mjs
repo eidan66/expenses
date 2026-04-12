@@ -9,7 +9,7 @@ import { parse as parseUrl } from "url";
 import { createClient } from "@supabase/supabase-js";
 import {
   deriveHebrewMonthYearFromDate,
-  isoDateLikePatternForHebrewCalendarMonth,
+  isoDateHalfOpenRangeForHebrewCalendarMonth,
 } from "../shared/hebrewMonthYear.ts";
 
 // Load .env and .env.local from project root
@@ -317,7 +317,7 @@ async function handleOpenClawMonthSummary(supabase, req, res) {
     return Number.isFinite(n) ? n : 0;
   }
 
-  const isoMonthPrefix = isoDateLikePatternForHebrewCalendarMonth(month, year);
+  const dateRange = isoDateHalfOpenRangeForHebrewCalendarMonth(month, year);
   const all = [];
   for (let page = 0; page < LEDGER_MAX_PAGES; page++) {
     const from = page * LEDGER_PAGE;
@@ -328,8 +328,8 @@ async function handleOpenClawMonthSummary(supabase, req, res) {
       .eq("user_id", userId)
       .order("date", { ascending: false })
       .range(from, to);
-    if (isoMonthPrefix) {
-      query = query.like("date", isoMonthPrefix);
+    if (dateRange) {
+      query = query.gte("date", dateRange.gte).lt("date", dateRange.lt);
     }
     const { data, error } = await query;
     if (error) {
@@ -365,7 +365,9 @@ async function handleOpenClawMonthSummary(supabase, req, res) {
     scope: { user_id: userId },
     period: { month, year },
     basis: "assigned_date_field",
-    query: { date_like_prefix: isoMonthPrefix },
+    query: dateRange
+      ? { date_gte: dateRange.gte, date_lt: dateRange.lt }
+      : { date_gte: null, date_lt: null },
     counts: { transactions_in_period: inPeriod.length, ledger_rows_loaded: all.length },
     totals: {
       income,

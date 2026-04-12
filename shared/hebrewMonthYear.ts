@@ -15,21 +15,31 @@ export const HEBREW_MONTH_NAMES = [
 ] as const;
 
 /**
- * SQL/PostgREST `like` pattern for `date` values that begin with `YYYY-MM-`
- * (e.g. `2026-04-01`, `2026-04-15T12:00:00.000Z`). Use to scope month-summary
- * queries instead of scanning the full ledger.
+ * Half-open ISO range `[gte, lt)` for calendar month — safe for PostgREST on
+ * `date`, `timestamp`, and text columns that store ISO dates or datetimes
+ * (`2026-04-15T00:00:00.000Z` sorts between `2026-04-01` and `2026-05-01`).
+ * Avoids `LIKE` on `date`-typed columns (which can 500 in Postgres).
  */
-export function isoDateLikePatternForHebrewCalendarMonth(
+export function isoDateHalfOpenRangeForHebrewCalendarMonth(
   hebrewMonth: string,
   yearStr: string
-): string | null {
+): { gte: string; lt: string } | null {
   const idx = HEBREW_MONTH_NAMES.indexOf(
     hebrewMonth as (typeof HEBREW_MONTH_NAMES)[number]
   );
   const y = parseInt(yearStr, 10);
   if (idx < 0 || !Number.isFinite(y)) return null;
   const monthNum = idx + 1;
-  return `${y}-${String(monthNum).padStart(2, "0")}-%`;
+  const mm = String(monthNum).padStart(2, "0");
+  const gte = `${y}-${mm}-01`;
+  let nextM = monthNum + 1;
+  let nextY = y;
+  if (nextM > 12) {
+    nextM = 1;
+    nextY = y + 1;
+  }
+  const lt = `${nextY}-${String(nextM).padStart(2, "0")}-01`;
+  return { gte, lt };
 }
 
 /**
