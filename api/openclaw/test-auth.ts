@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { isOpenClawAuthenticated } from "../lib/openclawAuth";
+import { isOpenClawAuthenticated } from "../lib/openclawAuth.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const ok = isOpenClawAuthenticated(req);

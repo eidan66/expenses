@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
-import { isOpenClawAuthenticated } from "../lib/openclawAuth";
+import { isOpenClawAuthenticated } from "../lib/openclawAuth.js";
 
 const DEFAULT_USER_ID = "c0d1a144-90cc-449f-a1ae-a1709cb534ca";
 
