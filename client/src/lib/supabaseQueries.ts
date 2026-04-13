@@ -42,22 +42,35 @@ export async function createTransaction(tx: InsertTransaction) {
 }
 
 export async function deleteTransaction(id: string) {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('transactions')
     .delete()
     .eq('id', id)
-  
+    .select('id')
+
   if (error) throw error
+  if (!data?.length) {
+    throw new Error(
+      'לא נמחקה שום עסקה (אין הרשאה או הרשומה כבר לא קיימת). נסו לרענן את הדף.'
+    )
+  }
 }
 
 export async function deleteTransactionsByIds(ids: string[]) {
   if (ids.length === 0) return
-  const { error } = await supabase
+  const uniqueIds = [...new Set(ids)]
+  const { data, error } = await supabase
     .from('transactions')
     .delete()
-    .in('id', ids)
+    .in('id', uniqueIds)
+    .select('id')
 
   if (error) throw error
+  if (!data?.length) {
+    throw new Error(
+      'לא נמחקה שום עסקה (אין הרשאה או הרשומות כבר לא קיימות). נסו לרענן את הדף.'
+    )
+  }
 }
 
 export async function updateTransaction(id: string, updates: Partial<InsertTransaction>) {

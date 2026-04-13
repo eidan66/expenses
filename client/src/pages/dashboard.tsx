@@ -13,6 +13,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -32,6 +42,7 @@ import {
   storagePeriodFromHebrewMonthYear,
   transactionMatchesAssignedPeriod,
 } from "@/lib/transactionPeriod";
+import { findSimilarTransactions } from "@/lib/transactionDuplicateMatch";
 
 const MONTHS = [...HEBREW_MONTHS];
 
@@ -45,7 +56,7 @@ const currentMonthIndex = currentDate.getMonth();
 const currentYearStr = currentDate.getFullYear().toString();
 const currentMonthName = MONTHS[currentMonthIndex];
 
- export default function Dashboard() {
+export default function Dashboard() {
   const { session, loading: authLoading } = useAuth();
   const supabaseReady = !authLoading && !!session;
   const { toast } = useToast();
@@ -94,7 +105,7 @@ const currentMonthName = MONTHS[currentMonthIndex];
     ? safeParseInt(mainGoalRow.current_amount || mainGoalRow.currentAmount)
     : 0;
 
-  const { data: transactions = [] } = useQuery<Transaction[]>({ 
+  const { data: transactions = [], isPending: transactionsPending } = useQuery<Transaction[]>({ 
     queryKey: ['transactions'],
     queryFn: getTransactions,
     enabled: supabaseReady,
@@ -198,6 +209,19 @@ const currentMonthName = MONTHS[currentMonthIndex];
     year: currentYearStr,
   });
 
+  const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
+  const [pendingInsertPayload, setPendingInsertPayload] =
+    useState<InsertTransaction | null>(null);
+  const [duplicateMatches, setDuplicateMatches] = useState<Transaction[]>([]);
+
+  type RemoveConfirmState =
+    | { kind: "transaction"; id: string }
+    | { kind: "transactionsBulk"; ids: string[] }
+    | { kind: "goal"; id: string };
+  const [removeConfirm, setRemoveConfirm] = useState<RemoveConfirmState | null>(
+    null
+  );
+
   const createTransactionMutation = useMutation({
     mutationFn: createTransaction,
     onSuccess: async (data) => {
@@ -298,13 +322,16 @@ const currentMonthName = MONTHS[currentMonthIndex];
       
       toast({ title: "העסקה נמחקה", description: "העסקה הוסרה מהמערכת" });
     },
-    onError: () => {
+    onError: (err: unknown) => {
       toast({
         variant: "destructive",
         title: "שגיאה",
-        description: "אירעה שגיאה במחיקת העסקה"
+        description:
+          err instanceof Error
+            ? err.message
+            : "אירעה שגיאה במחיקת העסקה",
       });
-    }
+    },
   });
 
   const deleteTransactionsBulkMutation = useMutation({
@@ -327,11 +354,14 @@ const currentMonthName = MONTHS[currentMonthIndex];
         description: `נמחקו ${ids.length} עסקאות מהמערכת`,
       });
     },
-    onError: () => {
+    onError: (err: unknown) => {
       toast({
         variant: "destructive",
         title: "שגיאה",
-        description: "אירעה שגיאה במחיקת העסקאות",
+        description:
+          err instanceof Error
+            ? err.message
+            : "אירעה שגיאה במחיקת העסקאות",
       });
     },
   });
@@ -379,12 +409,21 @@ const currentMonthName = MONTHS[currentMonthIndex];
       return;
     }
 
+    if (transactionsPending) {
+      toast({
+        variant: "destructive",
+        title: "רגע",
+        description: "טוען עסקאות קיימות, נסו שוב בעוד רגע"
+      });
+      return;
+    }
+
     const val = safeParseFloat(newTx.amount);
     const finalAmount = newTx.category === "הכנסה" ? Math.abs(val) : -Math.abs(val);
 
     const { date, month, year } = storagePeriodFromHebrewMonthYear(newTx.month, newTx.year);
 
-    createTransactionMutation.mutate({
+    const payload: InsertTransaction = {
       title: newTx.title,
       amount: finalAmount.toString(),
       category: newTx.category,
@@ -393,7 +432,31 @@ const currentMonthName = MONTHS[currentMonthIndex];
       month,
       year,
       notes: newTx.notes || null,
+    };
+
+    const similar = findSimilarTransactions(transactions, {
+      amount: payload.amount,
+      category: payload.category,
+      subcategory: payload.subcategory ?? null,
     });
+
+    if (similar.length > 0) {
+      setPendingInsertPayload(payload);
+      setDuplicateMatches(similar);
+      setDuplicateDialogOpen(true);
+      return;
+    }
+
+    createTransactionMutation.mutate(payload);
+  };
+
+  const openEditFromDuplicate = (t: Transaction) => {
+    setEditingTransaction(t);
+    setEditTransactionDialogOpen(true);
+    setDuplicateDialogOpen(false);
+    setOpen(false);
+    setPendingInsertPayload(null);
+    setDuplicateMatches([]);
   };
 
   const handleAddGoal = () => {
@@ -675,13 +738,155 @@ const currentMonthName = MONTHS[currentMonthIndex];
                   <Button
                     className="w-full mt-4 rounded-full h-12 text-lg"
                     onClick={handleAddTransaction}
-                    disabled={!isNewTxFormValid}
+                    disabled={!isNewTxFormValid || transactionsPending}
                   >
                     תיעוד עסקה
                   </Button>
                 </div>
               </DialogContent>
             </Dialog>
+
+            <AlertDialog
+              open={duplicateDialogOpen}
+              onOpenChange={(next) => {
+                setDuplicateDialogOpen(next);
+                if (!next) {
+                  setPendingInsertPayload(null);
+                  setDuplicateMatches([]);
+                }
+              }}
+            >
+              <AlertDialogContent
+                className="max-w-lg max-h-[90vh] flex flex-col gap-0 sm:max-w-lg"
+                dir="rtl"
+              >
+                <AlertDialogHeader className="text-right space-y-2">
+                  <AlertDialogTitle className="text-right font-heading">
+                    עסקה דומה קיימת
+                  </AlertDialogTitle>
+                </AlertDialogHeader>
+                <div className="max-h-[min(50vh,320px)] overflow-y-auto space-y-2 py-2 border-y border-border my-2">
+                  {duplicateMatches.map((t) => {
+                    const isIncome = t.category === "הכנסה";
+                    const isSavings = t.category === "חיסכון";
+                    const amount = Math.abs(safeParseFloat(t.amount));
+                    return (
+                      <div
+                        key={t.id}
+                        className="rounded-lg border bg-muted/40 p-3 text-right space-y-2"
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1 space-y-1">
+                            <p className="font-semibold text-sm text-foreground">
+                              {isSavings ? "הפקדה" : t.title}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {t.category}
+                              {t.subcategory ? ` • ${t.subcategory}` : ""}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {t.month} {t.year}
+                              {t.date ? ` · ${t.date}` : ""}
+                            </p>
+                          </div>
+                          <span
+                            className={cn(
+                              "shrink-0 font-bold font-heading text-sm",
+                              isSavings
+                                ? "text-blue-600"
+                                : isIncome
+                                  ? "text-emerald-600"
+                                  : "text-foreground"
+                            )}
+                          >
+                            {isSavings ? "₪" : isIncome ? "+₪" : "₪"}
+                            {amount.toLocaleString("he-IL", {
+                              minimumFractionDigits: 0,
+                              maximumFractionDigits: 2,
+                            })}
+                          </span>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="w-full rounded-full"
+                          onClick={() => openEditFromDuplicate(t)}
+                        >
+                          עריכת עסקה זו
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+                <AlertDialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:justify-start sm:space-x-0 sm:gap-2 rtl:space-x-reverse">
+                  <AlertDialogCancel className="mt-0 rounded-full">
+                    חזרה לטופס
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    className="rounded-full"
+                    onClick={() => {
+                      if (pendingInsertPayload) {
+                        createTransactionMutation.mutate(pendingInsertPayload);
+                      }
+                    }}
+                  >
+                    הוספה בכל זאת
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog
+              open={removeConfirm !== null}
+              onOpenChange={(next) => {
+                if (!next) setRemoveConfirm(null);
+              }}
+            >
+              <AlertDialogContent className="sm:max-w-md" dir="rtl">
+                <AlertDialogHeader className="text-right space-y-2">
+                  <AlertDialogTitle className="text-right font-heading">
+                    {removeConfirm?.kind === "transaction"
+                      ? "מחיקת עסקה"
+                      : removeConfirm?.kind === "transactionsBulk"
+                        ? "מחיקת עסקאות"
+                        : removeConfirm?.kind === "goal"
+                          ? "מחיקת יעד"
+                          : ""}
+                  </AlertDialogTitle>
+                  <AlertDialogDescription className="text-right text-muted-foreground">
+                    {removeConfirm?.kind === "transaction"
+                      ? "למחוק עסקה זו? פעולה זו אינה הפיכה."
+                      : removeConfirm?.kind === "transactionsBulk"
+                        ? `למחוק ${removeConfirm.ids.length} עסקאות? פעולה זו אינה הפיכה.`
+                        : removeConfirm?.kind === "goal"
+                          ? "למחוק יעד זה? פעולה זו אינה הפיכה."
+                          : ""}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:justify-start sm:space-x-0 sm:gap-2 rtl:space-x-reverse">
+                  <AlertDialogCancel className="mt-0 rounded-full">
+                    ביטול
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    className="rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90 focus-visible:ring-destructive"
+                    onClick={() => {
+                      const pending = removeConfirm;
+                      if (!pending) return;
+                      if (pending.kind === "transaction") {
+                        deleteTransactionMutation.mutate(pending.id);
+                      } else if (pending.kind === "transactionsBulk") {
+                        deleteTransactionsBulkMutation.mutate(pending.ids);
+                      } else {
+                        deleteGoalMutation.mutate(pending.id);
+                      }
+                    }}
+                  >
+                    מחק
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
 
             {/* Edit Transaction Dialog */}
             <Dialog open={editTransactionDialogOpen} onOpenChange={setEditTransactionDialogOpen}>
@@ -875,11 +1080,9 @@ const currentMonthName = MONTHS[currentMonthIndex];
                       size="sm" 
                       variant="ghost" 
                       className="h-8 w-8 p-0 text-white hover:bg-red-500/30"
-                      onClick={() => {
-                        if (confirm("האם אתה בטוח שברצונך למחוק יעד זה?")) {
-                          deleteGoalMutation.mutate(mainGoal.id);
-                        }
-                      }}
+                      onClick={() =>
+                        setRemoveConfirm({ kind: "goal", id: mainGoal.id })
+                      }
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
@@ -1141,17 +1344,9 @@ const currentMonthName = MONTHS[currentMonthIndex];
                     className="h-8 rounded-full text-xs"
                     disabled={deleteTransactionsBulkMutation.isPending}
                     onClick={() => {
-                      const n = selectedTransactionIds.size;
-                      if (
-                        !confirm(
-                          `האם למחוק את ${n} העסקאות הנבחרות? פעולה זו אינה הפיכה.`
-                        )
-                      ) {
-                        return;
-                      }
-                      deleteTransactionsBulkMutation.mutate(
-                        Array.from(selectedTransactionIds)
-                      );
+                      const ids = Array.from(selectedTransactionIds);
+                      if (ids.length === 0) return;
+                      setRemoveConfirm({ kind: "transactionsBulk", ids });
                     }}
                   >
                     מחק נבחרים ({selectedTransactionIds.size})
@@ -1213,27 +1408,33 @@ const currentMonthName = MONTHS[currentMonthIndex];
                       )}>
                         {isSavings ? "₪" : isIncome ? "+₪" : "₪"}{amount.toLocaleString("he-IL", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                       </span>
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button 
-                          size="sm" 
-                          variant="ghost" 
+                      <div
+                        className={cn(
+                          "flex gap-1 transition-opacity",
+                          /* Touch / no-hover: always show; fine-pointer + hover: show on row hover */
+                          "opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
+                        )}
+                      >
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
                           className="h-7 w-7 p-0"
-                          onClick={() => { 
-                            setEditingTransaction(t); 
-                            setEditTransactionDialogOpen(true); 
+                          onClick={() => {
+                            setEditingTransaction(t);
+                            setEditTransactionDialogOpen(true);
                           }}
                         >
                           <Pencil className="w-3.5 h-3.5" />
                         </Button>
-                        <Button 
-                          size="sm" 
-                          variant="ghost" 
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
                           className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                          onClick={() => {
-                            if (confirm("האם אתה בטוח שברצונך למחוק עסקה זו?")) {
-                              deleteTransactionMutation.mutate(t.id);
-                            }
-                          }}
+                          onClick={() =>
+                            setRemoveConfirm({ kind: "transaction", id: t.id })
+                          }
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </Button>
