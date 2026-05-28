@@ -22,6 +22,8 @@ import {
   TrendingDown,
   TrendingUp,
   Lightbulb,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { type Transaction } from "@shared/schema";
@@ -43,6 +45,8 @@ import {
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AnalyticsAiPanel } from "@/components/analytics-ai-panel";
+import CategoryDetailPanel from "@/components/category-detail-panel";
+import { Button } from "@/components/ui/button";
 
 const RANGE_OPTIONS: { value: AnalyticsTimeRange; label: string }[] = [
   { value: "all", label: "כל התקופה" },
@@ -75,6 +79,8 @@ export default function Analytics() {
   });
 
   const [timeRange, setTimeRange] = useState<AnalyticsTimeRange>("all");
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [allSubsOpen, setAllSubsOpen] = useState(false);
 
   const report = useMemo(
     () => buildAnalyticsReport(transactions, timeRange),
@@ -412,6 +418,12 @@ export default function Analytics() {
                           layout="vertical"
                           data={categoryBarData}
                           margin={{ left: 16, right: 24, top: 8, bottom: 8 }}
+                          onClick={(data) => {
+                            if (data?.activePayload?.[0]?.payload?.name) {
+                              setSelectedCategory(data.activePayload[0].payload.name);
+                            }
+                          }}
+                          style={{ cursor: "pointer" }}
                         >
                           <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--muted))" />
                           <XAxis type="number" hide />
@@ -490,6 +502,62 @@ export default function Analytics() {
                       </CardContent>
                     </Card>
                   )}
+                  {/* All subcategories collapsible */}
+                  {report.expenseBySubcategory.length > 0 && (
+                    <Card className="border-none shadow-sm lg:col-span-2">
+                      <CardHeader
+                        className="cursor-pointer select-none"
+                        onClick={() => setAllSubsOpen((o) => !o)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <Button variant="ghost" size="icon" className="h-6 w-6">
+                            {allSubsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                          </Button>
+                          <CardTitle className="font-heading text-lg text-right">
+                            כל תת-הקטגוריות ({report.expenseBySubcategory.length})
+                          </CardTitle>
+                        </div>
+                      </CardHeader>
+                      {allSubsOpen && (
+                        <CardContent>
+                          <div className="space-y-1">
+                            {report.expenseBySubcategory.map((item, i) => {
+                              const category = item.name.includes(" • ")
+                                ? item.name.split(" • ")[0]
+                                : item.name;
+                              const totalExpenses = report.expenseBySubcategory.reduce(
+                                (s, d) => s + d.value,
+                                0
+                              );
+                              const pct =
+                                totalExpenses > 0
+                                  ? ((item.value / totalExpenses) * 100).toFixed(1)
+                                  : "0";
+                              return (
+                                <div
+                                  key={item.name}
+                                  className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                                  onClick={() => setSelectedCategory(category)}
+                                >
+                                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                                    <span
+                                      className="w-2.5 h-2.5 rounded-full shrink-0"
+                                      style={{ background: chartColor(i) }}
+                                    />
+                                    <span className="text-sm text-right truncate">{item.name}</span>
+                                  </div>
+                                  <div className="flex items-center gap-3 shrink-0">
+                                    <span className="text-xs text-muted-foreground">{pct}%</span>
+                                    <span className="text-sm font-medium">{formatCurrency(item.value)}</span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </CardContent>
+                      )}
+                    </Card>
+                  )}
                 </div>
               </>
             )}
@@ -500,6 +568,12 @@ export default function Analytics() {
           </TabsContent>
         </Tabs>
       </div>
+
+      <CategoryDetailPanel
+        category={selectedCategory}
+        transactions={transactions}
+        onClose={() => setSelectedCategory(null)}
+      />
     </Layout>
   );
 }
